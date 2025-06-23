@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { StockDashboard } from '@/components/StockDashboard';
+import StockDashboard from '@/components/StockDashboard';
 
 const Index = () => {
   return <StockDashboard />;
