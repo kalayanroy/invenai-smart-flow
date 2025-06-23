@@ -114,7 +114,7 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
       }
 
       console.log('Sale successfully added to Supabase:', data);
-      await updateProductStock(saleData.productId, saleData.quantity);
+      await updateProductStock(saleData.productId, -saleData.quantity);
       await fetchSales(); // Refresh the list
       return data;
     } catch (error) {
@@ -150,7 +150,7 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
       }
 
       console.log('Sale updated successfully in Supabase');
-      await updateProductStock(updates.productId!, updates.quantity || 0);
+      await updateProductStock(updates.productId!, -updates.quantity || 0);
       await fetchSales(); // Refresh the list
     } catch (error) {
       console.error('Error in updateSale:', error);
