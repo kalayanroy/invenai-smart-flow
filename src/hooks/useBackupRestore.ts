@@ -17,10 +17,10 @@ interface BackupData {
 
 export const useBackupRestore = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { products, setProducts } = useProducts();
-  const { sales, setSales } = useSales();
-  const { purchases, setPurchases } = usePurchases();
-  const { salesReturns, setSalesReturns } = useSalesReturns();
+  const { products, clearAllProducts, addProduct } = useProducts();
+  const { sales, clearAllSales, addSale } = useSales();
+  const { purchases, clearAllPurchases, addPurchase } = usePurchases();
+  const { salesReturns, clearAllSalesReturns, addSalesReturn } = useSalesReturns();
   const { toast } = useToast();
 
   const createBackup = () => {
@@ -70,11 +70,97 @@ export const useBackupRestore = () => {
         throw new Error('Invalid backup file format');
       }
 
-      // Restore data
-      setProducts(backupData.products);
-      setSales(backupData.sales);
-      setPurchases(backupData.purchases);
-      setSalesReturns(backupData.salesReturns);
+      // Clear all existing data first
+      await clearAllProducts();
+      await clearAllSales();
+      await clearAllPurchases();
+      await clearAllSalesReturns();
+
+      // Restore products first (since other data depends on products)
+      for (const product of backupData.products) {
+        try {
+          await addProduct({
+            name: product.name,
+            sku: product.sku,
+            barcode: product.barcode || '',
+            category: product.category,
+            price: product.price,
+            purchasePrice: product.purchasePrice,
+            sellPrice: product.sellPrice,
+            openingStock: product.openingStock || product.stock || 0,
+            unit: product.unit,
+            image: product.image
+          });
+        } catch (error) {
+          console.warn('Failed to restore product:', product.name, error);
+        }
+      }
+
+      // Restore sales
+      for (const sale of backupData.sales) {
+        try {
+          await addSale({
+            productId: sale.productId,
+            productName: sale.productName,
+            quantity: sale.quantity,
+            unitPrice: sale.unitPrice,
+            totalAmount: sale.totalAmount,
+            date: sale.date,
+            status: sale.status,
+            customerName: sale.customerName,
+            notes: sale.notes
+          });
+        } catch (error) {
+          console.warn('Failed to restore sale:', sale.id, error);
+        }
+      }
+
+      // Restore purchases
+      for (const purchase of backupData.purchases) {
+        try {
+          await addPurchase({
+            productId: purchase.productId,
+            productName: purchase.productName,
+            supplier: purchase.supplier,
+            quantity: purchase.quantity,
+            unitPrice: purchase.unitPrice,
+            totalAmount: purchase.totalAmount,
+            date: purchase.date,
+            status: purchase.status,
+            notes: purchase.notes,
+            purchaseOrderId: purchase.purchaseOrderId
+          });
+        } catch (error) {
+          console.warn('Failed to restore purchase:', purchase.id, error);
+        }
+      }
+
+      // Restore sales returns
+      for (const salesReturn of backupData.salesReturns) {
+        try {
+          await addSalesReturn({
+            originalSaleId: salesReturn.originalSaleId,
+            originalVoucherId: salesReturn.originalVoucherId,
+            originalVoucherItemId: salesReturn.originalVoucherItemId,
+            sourceType: salesReturn.sourceType,
+            productId: salesReturn.productId,
+            productName: salesReturn.productName,
+            returnQuantity: salesReturn.returnQuantity,
+            originalQuantity: salesReturn.originalQuantity,
+            unitPrice: salesReturn.unitPrice,
+            totalRefund: salesReturn.totalRefund,
+            returnDate: salesReturn.returnDate,
+            reason: salesReturn.reason,
+            status: salesReturn.status,
+            customerName: salesReturn.customerName,
+            notes: salesReturn.notes,
+            processedBy: salesReturn.processedBy,
+            processedDate: salesReturn.processedDate
+          });
+        } catch (error) {
+          console.warn('Failed to restore sales return:', salesReturn.id, error);
+        }
+      }
 
       toast({
         title: "Restore Successful",
