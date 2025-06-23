@@ -10,6 +10,7 @@ import { SalesSection } from './inventory/SalesSection';
 import { PurchaseSection } from './inventory/PurchaseSection';
 import { StockManagement } from './inventory/StockManagement';
 import { SalesReturnSection } from './inventory/SalesReturnSection';
+import { BackupRestore } from './inventory/BackupRestore';
 import { Reports } from '../pages/Reports';
 import { POSSystem } from './pos/POSSystem';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +19,8 @@ import {
   User, LogOut, Menu, X,
   BarChart3, Package, Boxes,
   ShoppingCart, RotateCcw,
-  ShoppingBag, FileText, CreditCard
+  ShoppingBag, FileText, CreditCard,
+  Database
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -42,6 +44,7 @@ export const StockDashboard = () => {
     { id: 'sales', label: 'Sales', icon: ShoppingCart },
     { id: 'sales-returns', label: 'Returns', icon: RotateCcw },
     { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
+    { id: 'backup-restore', label: 'Backup', icon: Database },
     { id: 'reports', label: 'Reports', icon: FileText },
   ];
 
@@ -154,6 +157,7 @@ export const StockDashboard = () => {
             {activeTab === 'sales' && <SalesSection />}
             {activeTab === 'sales-returns' && <SalesReturnSection />}
             {activeTab === 'purchases' && <PurchaseSection />}
+            {activeTab === 'backup-restore' && <BackupRestore />}
             {activeTab === 'reports' && <Reports />}
           </div>
         )}
