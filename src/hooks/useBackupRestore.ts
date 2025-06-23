@@ -88,6 +88,8 @@ export const useBackupRestore = () => {
             purchasePrice: product.purchasePrice,
             sellPrice: product.sellPrice,
             openingStock: product.openingStock || product.stock || 0,
+            stock: product.stock || product.openingStock || 0,
+            reorderPoint: product.reorderPoint || Math.max(10, Math.floor((product.stock || product.openingStock || 0) * 0.2)),
             unit: product.unit,
             image: product.image
           });
