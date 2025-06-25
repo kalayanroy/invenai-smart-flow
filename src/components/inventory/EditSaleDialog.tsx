@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ProductSelector } from './ProductSelector';
 import { Sale } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
@@ -23,7 +25,9 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
   const { sales } = useSales();
   const { purchases } = usePurchases();
   const { salesReturns } = useSalesReturns();
+  const [productSelectorOpen, setProductSelectorOpen] = useState(false);
   const [formData, setFormData] = useState({
+    productId: '',
     quantity: 1,
     unitPrice: '',
     customerName: '',
@@ -49,6 +53,7 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
   useEffect(() => {
     if (sale) {
       setFormData({
+        productId: sale.productId,
         quantity: sale.quantity,
         unitPrice: sale.unitPrice.replace(/[$৳]/g, ''),
         customerName: sale.customerName || '',
@@ -60,13 +65,24 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
 
   if (!sale) return null;
 
-  const selectedProduct = products.find(p => p.id === sale.productId);
+  const selectedProduct = products.find(p => p.id === formData.productId);
   const unitPrice = parseFloat(formData.unitPrice) || 0;
   const totalAmount = unitPrice * formData.quantity;
   
   // Calculate available stock excluding the current sale being edited
-  const availableStock = getCalculatedStock(sale.productId, sale.id);
+  const availableStock = getCalculatedStock(formData.productId, sale.id);
   const isQuantityValid = formData.quantity <= availableStock;
+
+  const handleProductSelect = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      setFormData({
+        ...formData,
+        productId,
+        unitPrice: product.sellPrice.replace(/[$৳]/g, '')
+      });
+    }
+  };
 
   const handleQuantityChange = (value: string) => {
     const newQuantity = parseInt(value) || 1;
@@ -79,9 +95,11 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isQuantityValid) return;
+    if (!isQuantityValid || !formData.productId) return;
 
     const updates: Partial<Sale> = {
+      productId: formData.productId,
+      productName: selectedProduct?.name || '',
       quantity: formData.quantity,
       unitPrice: `${unitPrice.toFixed(2)}`,
       totalAmount: `${totalAmount.toFixed(2)}`,
@@ -104,17 +122,22 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Product</Label>
-              <div className="bg-gray-50 p-3 rounded border">
-                <p className="font-medium">{sale.productName}</p>
-                <p className="text-sm text-gray-500">SKU: {sale.productId}</p>
-                <p className="text-sm text-gray-600">
+              <Label>Product *</Label>
+              <ProductSelector
+                products={products}
+                selectedProductId={formData.productId}
+                onProductSelect={handleProductSelect}
+                open={productSelectorOpen}
+                onOpenChange={setProductSelectorOpen}
+              />
+              {selectedProduct && (
+                <div className="text-sm text-gray-600">
                   Available Stock: <span className="font-medium">{availableStock}</span>
                   <span className="text-xs text-gray-500 ml-1">
                     (calculated stock excluding this sale)
                   </span>
-                </p>
-              </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -205,7 +228,7 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!isQuantityValid}>
+            <Button type="submit" disabled={!isQuantityValid || !formData.productId}>
               Update Sale
             </Button>
           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,16 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ProductSelector } from './ProductSelector';
+import { Sale } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSalesReturns } from '@/hooks/useSalesReturns';
-import { Sale } from '@/hooks/useSales';
 
 interface CreateSaleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaleCreated: (sale: Omit<Sale, 'id'>) => void;
+  onSaleCreated: (saleData: Omit<Sale, 'id'>) => void;
 }
 
 export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSaleDialogProps) => {
@@ -22,6 +24,7 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
   const { sales } = useSales();
   const { purchases } = usePurchases();
   const { salesReturns } = useSalesReturns();
+  const [productSelectorOpen, setProductSelectorOpen] = useState(false);
   const [formData, setFormData] = useState({
     productId: '',
     quantity: 1,
@@ -31,15 +34,15 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
     notes: ''
   });
 
-  // Calculate actual available stock using: Opening Stock + Total Purchase + Total Return - Total Sales
+  // Calculate available stock using: Opening Stock + Total Purchase + Total Return - Total Sales
   const getCalculatedStock = (productId: string) => {
     const product = products.find(p => p.id === productId);
-    const productSales = sales.filter(sale => sale.productId === productId);
+    const productSales = sales.filter(s => s.productId === productId);
     const productPurchases = purchases.filter(purchase => purchase.productId === productId);
     const productReturns = salesReturns.filter(returnItem => returnItem.productId === productId);
     
     const openingStock = product?.openingStock || 0;
-    const totalSold = productSales.reduce((sum, sale) => sum + sale.quantity, 0);
+    const totalSold = productSales.reduce((sum, s) => sum + s.quantity, 0);
     const totalPurchased = productPurchases.reduce((sum, purchase) => sum + purchase.quantity, 0);
     const totalReturned = productReturns.reduce((sum, returnItem) => sum + returnItem.returnQuantity, 0);
     
@@ -47,19 +50,21 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
   };
 
   const selectedProduct = products.find(p => p.id === formData.productId);
-  const unitPrice = formData.unitPrice ? parseFloat(formData.unitPrice) : 0;
+  const unitPrice = parseFloat(formData.unitPrice) || 0;
   const totalAmount = unitPrice * formData.quantity;
-  const availableStock = selectedProduct ? getCalculatedStock(selectedProduct.id) : 0;
+  const availableStock = formData.productId ? getCalculatedStock(formData.productId) : 0;
   const isQuantityValid = formData.quantity <= availableStock;
 
-  const handleProductChange = (productId: string) => {
+  const handleProductSelect = (productId: string) => {
     const product = products.find(p => p.id === productId);
-    setFormData({
-      ...formData,
-      productId,
-      unitPrice: product ? product.sellPrice.replace(/[$৳]/g, '') : '',
-      quantity: 1 // Reset quantity when product changes
-    });
+    if (product) {
+      setFormData({
+        ...formData,
+        productId,
+        unitPrice: product.sellPrice.replace(/[$৳]/g, ''),
+        quantity: 1 // Reset quantity when product changes
+      });
+    }
   };
 
   const handleQuantityChange = (value: string) => {
@@ -72,13 +77,14 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct || !formData.unitPrice || !isQuantityValid) return;
+
+    if (!isQuantityValid || !formData.productId || !selectedProduct) return;
 
     const saleData: Omit<Sale, 'id'> = {
       productId: formData.productId,
       productName: selectedProduct.name,
       quantity: formData.quantity,
-      unitPrice: `${parseFloat(formData.unitPrice).toFixed(2)}`,
+      unitPrice: `${unitPrice.toFixed(2)}`,
       totalAmount: `${totalAmount.toFixed(2)}`,
       date: new Date().toISOString().split('T')[0],
       status: formData.status,
@@ -88,6 +94,8 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
 
     onSaleCreated(saleData);
     onOpenChange(false);
+    
+    // Reset form
     setFormData({
       productId: '',
       quantity: 1,
@@ -102,32 +110,24 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Record New Sale</DialogTitle>
+          <DialogTitle>Create New Sale</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="product">Product *</Label>
-              <Select value={formData.productId} onValueChange={handleProductChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => {
-                    const calculatedStock = getCalculatedStock(product.id);
-                    return (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {product.sellPrice} (Stock: {calculatedStock})
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <Label>Product *</Label>
+              <ProductSelector
+                products={products}
+                selectedProductId={formData.productId}
+                onProductSelect={handleProductSelect}
+                open={productSelectorOpen}
+                onOpenChange={setProductSelectorOpen}
+              />
               {selectedProduct && (
-                <p className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600">
                   Available Stock: <span className="font-medium">{availableStock}</span>
-                </p>
+                </div>
               )}
             </div>
 
@@ -142,8 +142,9 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
                 onChange={(e) => handleQuantityChange(e.target.value)}
                 required
                 className={!isQuantityValid ? 'border-red-500' : ''}
+                disabled={!formData.productId}
               />
-              {!isQuantityValid && (
+              {!isQuantityValid && formData.productId && (
                 <p className="text-sm text-red-600">
                   Quantity cannot exceed available stock ({availableStock})
                 </p>
@@ -151,7 +152,7 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="unitPrice">Unit Price (৳) *</Label>
+              <Label htmlFor="unitPrice">Unit Price *</Label>
               <Input
                 id="unitPrice"
                 type="number"
@@ -189,22 +190,20 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
             </div>
           </div>
 
-          {formData.unitPrice && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Sale Summary</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Unit Price:</span> ৳{parseFloat(formData.unitPrice).toFixed(2)}
-                </div>
-                <div>
-                  <span className="text-gray-600">Quantity:</span> {formData.quantity}
-                </div>
-                <div className="col-span-2 text-lg font-semibold">
-                  <span className="text-gray-600">Total Amount:</span> ৳{totalAmount.toFixed(2)}
-                </div>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium mb-2">Sale Summary</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Unit Price:</span> ৳{unitPrice.toFixed(2)}
+              </div>
+              <div>
+                <span className="text-gray-600">Quantity:</span> {formData.quantity}
+              </div>
+              <div className="col-span-2 text-lg font-semibold">
+                <span className="text-gray-600">Total Amount:</span> ৳{totalAmount.toFixed(2)}
               </div>
             </div>
-          )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
@@ -221,11 +220,8 @@ export const CreateSaleDialog = ({ open, onOpenChange, onSaleCreated }: CreateSa
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={!formData.productId || !formData.unitPrice || !isQuantityValid}
-            >
-              Record Sale
+            <Button type="submit" disabled={!isQuantityValid || !formData.productId}>
+              Create Sale
             </Button>
           </div>
         </form>

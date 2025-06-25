@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Plus } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Trash2, Plus, Check, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Purchase, PurchaseOrder } from '@/hooks/usePurchases';
 import { useProducts } from '@/hooks/useProducts';
 
@@ -35,6 +38,7 @@ export const EditPurchaseDialog = ({ open, onOpenChange, purchaseOrder, onPurcha
     notes: ''
   });
   const [items, setItems] = useState<EditItem[]>([]);
+  const [openProductSelectors, setOpenProductSelectors] = useState<boolean[]>([]);
 
   useEffect(() => {
     if (purchaseOrder) {
@@ -44,18 +48,27 @@ export const EditPurchaseDialog = ({ open, onOpenChange, purchaseOrder, onPurcha
         notes: purchaseOrder.notes || ''
       });
       
-      setItems(purchaseOrder.items.map(item => ({
+      const orderItems = purchaseOrder.items.map(item => ({
         id: item.id,
         productId: item.productId,
         productName: item.productName,
         quantity: item.quantity,
         unitPrice: parseFloat(item.unitPrice.replace('৳', '').replace(',', '')),
         totalAmount: parseFloat(item.totalAmount.replace('৳', '').replace(',', ''))
-      })));
+      }));
+      
+      setItems(orderItems);
+      setOpenProductSelectors(new Array(orderItems.length).fill(false));
     }
   }, [purchaseOrder]);
 
   if (!purchaseOrder) return null;
+
+  const setProductSelectorOpen = (index: number, open: boolean) => {
+    const newOpenStates = [...openProductSelectors];
+    newOpenStates[index] = open;
+    setOpenProductSelectors(newOpenStates);
+  };
 
   const updateItemQuantity = (index: number, quantity: number) => {
     const newItems = [...items];
@@ -74,6 +87,7 @@ export const EditPurchaseDialog = ({ open, onOpenChange, purchaseOrder, onPurcha
   const removeItem = (index: number) => {
     const newItems = items.filter((_, i) => i !== index);
     setItems(newItems);
+    setOpenProductSelectors(openProductSelectors.filter((_, i) => i !== index));
   };
 
   const addNewItem = () => {
@@ -87,6 +101,7 @@ export const EditPurchaseDialog = ({ open, onOpenChange, purchaseOrder, onPurcha
         totalAmount: parseFloat(products[0].purchasePrice.replace('৳', '').replace(',', ''))
       };
       setItems([...items, newItem]);
+      setOpenProductSelectors([...openProductSelectors, false]);
     }
   };
 
@@ -99,6 +114,7 @@ export const EditPurchaseDialog = ({ open, onOpenChange, purchaseOrder, onPurcha
       newItems[index].unitPrice = parseFloat(product.purchasePrice.replace('৳', '').replace(',', ''));
       newItems[index].totalAmount = newItems[index].quantity * newItems[index].unitPrice;
       setItems(newItems);
+      setProductSelectorOpen(index, false);
     }
   };
 
@@ -176,18 +192,49 @@ export const EditPurchaseDialog = ({ open, onOpenChange, purchaseOrder, onPurcha
                 <div key={item.id} className="grid grid-cols-12 gap-2 items-end p-4 border rounded-lg">
                   <div className="col-span-4">
                     <Label className="text-xs">Product</Label>
-                    <Select value={item.productId} onValueChange={(value) => updateItemProduct(index, value)}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} (৳{product.purchasePrice})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={openProductSelectors[index]} onOpenChange={(open) => setProductSelectorOpen(index, open)}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openProductSelectors[index]}
+                          className="w-full justify-between h-8"
+                        >
+                          {item.productId
+                            ? products.find((product) => product.id === item.productId)?.name
+                            : "Select product..."}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search products..." />
+                          <CommandList>
+                            <CommandEmpty>No product found.</CommandEmpty>
+                            <CommandGroup>
+                              {products.map((product) => (
+                                <CommandItem
+                                  key={product.id}
+                                  value={product.name}
+                                  onSelect={() => updateItemProduct(index, product.id)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      item.productId === product.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span>{product.name}</span>
+                                    <span className="text-sm text-muted-foreground">{product.purchasePrice}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   
                   <div className="col-span-2">
