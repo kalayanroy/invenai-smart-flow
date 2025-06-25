@@ -157,3 +157,64 @@ export const generatePInvoicePDF = (purchase: any) => {
   
   doc.save(`purchase-order-${purchase.id}.pdf`);
 };
+
+export const generateSalesInvoicePDF = (sale: any) => {
+  const doc = new jsPDF();
+  
+  // Header
+  doc.setFontSize(20);
+  doc.text('SALES INVOICE', 105, 20, { align: 'center' });
+  
+  // Company info
+  doc.setFontSize(12);
+  doc.text('Nahar Enterprise', 20, 40);
+  doc.text('Abdul Kadar market, member bari road,', 20, 50);
+  doc.text('National University, gazipur city corporation.', 20, 60);
+  doc.text('Phone: 01712014171', 20, 70);
+  
+  // Invoice details
+  doc.text(`Invoice ID: ${sale.id}`, 140, 40);
+  doc.text(`Date: ${sale.date}`, 140, 50);
+  doc.text(`Status: ${sale.status}`, 140, 60);
+  
+  // Customer
+  doc.text(`Customer: ${sale.customerName || 'Walk-in Customer'}`, 20, 90);
+  
+  // Items table header
+  doc.setFontSize(10);
+  doc.text('Product', 20, 110);
+  doc.text('Quantity', 70, 110);
+  doc.text('Unit Price', 100, 110);
+  doc.text('Total', 140, 110);
+  
+  // Table line
+  doc.line(20, 115, 190, 115);
+  
+  let yPosition = 125;
+  
+  // Single item
+  doc.text(sale.productName || 'N/A', 20, yPosition);
+  doc.text(sale.quantity?.toString() || '0', 70, yPosition);
+  const unitPrice = typeof sale.unitPrice === 'string' 
+    ? parseFloat(sale.unitPrice.replace('৳', '').replace(',', '')) 
+    : sale.unitPrice || 0;
+  doc.text(`৳${unitPrice.toFixed(2)}`, 100, yPosition);
+  const totalAmount = typeof sale.totalAmount === 'string'
+    ? parseFloat(sale.totalAmount.replace('৳', '').replace(',', ''))
+    : sale.totalAmount || 0;
+  doc.text(`৳${totalAmount.toFixed(2)}`, 140, yPosition);
+  yPosition += 10;
+  
+  // Total line
+  doc.line(20, yPosition + 5, 190, yPosition + 5);
+  
+  // Total Amount
+  doc.setFontSize(12);
+  doc.text(`Total Amount: ৳${totalAmount.toFixed(2)}`, 140, yPosition + 20);
+  
+  if (sale.notes) {
+    doc.text(`Notes: ${sale.notes}`, 20, yPosition + 40);
+  }
+  
+  doc.save(`sales-invoice-${sale.id}.pdf`);
+};
