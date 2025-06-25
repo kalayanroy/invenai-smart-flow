@@ -141,8 +141,8 @@ export const usePurchases = () => {
           product_name: item.productName,
           supplier: orderData.supplier,
           quantity: item.quantity,
-          unit_price: `৳${item.unitPrice.toFixed(2)}`,
-          total_amount: `৳${totalAmount.toFixed(2)}`,
+          unit_price: `${item.unitPrice.toFixed(2)}`,
+          total_amount: `${totalAmount.toFixed(2)}`,
           date: new Date().toISOString().split('T')[0],
           status: orderData.status,
           notes: orderData.notes || null
