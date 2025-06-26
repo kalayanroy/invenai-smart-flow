@@ -55,12 +55,14 @@ export const createImageLoader = () => {
   };
 };
 
-// Memory cleanup utility
+// Memory cleanup utility - simplified version that doesn't try to modify readonly refs
 export const cleanupRefs = (...refs: React.RefObject<any>[]) => {
+  // Note: React refs are automatically cleaned up by React's garbage collection
+  // This function is kept for API compatibility but doesn't perform direct cleanup
+  // as ref.current is read-only
   refs.forEach(ref => {
-    if (ref.current) {
-      ref.current = null;
+    if (ref.current && typeof ref.current.cleanup === 'function') {
+      ref.current.cleanup();
     }
   });
 };
-
