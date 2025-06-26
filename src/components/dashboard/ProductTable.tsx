@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, Trash2, MoreHorizontal, Plus } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CreateProductForm } from '../inventory/CreateProductForm';
 import { ProductViewDialog } from '../inventory/ProductViewDialog';
 import { ProductEditDialog } from '../inventory/ProductEditDialog';
+import { ProductTableFilters } from './ProductTableFilters';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
 
@@ -17,6 +19,67 @@ export const ProductTable = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
+
+  // Get unique categories
+  const categories = useMemo(() => {
+    return [...new Set(products.map(p => p.category))];
+  }, [products]);
+
+  // Filter products
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.category.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
+      
+      let matchesStock = true;
+      if (stockFilter !== 'all') {
+        const stock = product.stock;
+        switch (stockFilter) {
+          case 'high':
+            matchesStock = stock > 50;
+            break;
+          case 'medium':
+            matchesStock = stock >= 11 && stock <= 50;
+            break;
+          case 'low':
+            matchesStock = stock >= 1 && stock <= 10;
+            break;
+          case 'empty':
+            matchesStock = stock === 0;
+            break;
+        }
+      }
+      
+      return matchesSearch && matchesCategory && matchesStatus && matchesStock;
+    });
+  }, [products, searchTerm, categoryFilter, statusFilter, stockFilter]);
+
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm) count++;
+    if (categoryFilter !== 'all') count++;
+    if (statusFilter !== 'all') count++;
+    if (stockFilter !== 'all') count++;
+    return count;
+  }, [searchTerm, categoryFilter, statusFilter, stockFilter]);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setCategoryFilter('all');
+    setStatusFilter('all');
+    setStockFilter('all');
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -51,14 +114,6 @@ export const ProductTable = () => {
     }
   };
 
-  const handleMoreActions = (product: Product) => {
-    toast({
-      title: "More Actions",
-      description: `Additional options for ${product.name}`,
-    });
-    console.log('More actions for product:', product);
-  };
-
   const handleProductCreated = (productData: any) => {
     addProduct(productData);
     setShowCreateProduct(false);
@@ -91,10 +146,36 @@ export const ProductTable = () => {
         </div>
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-6">
+          <ProductTableFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            stockFilter={stockFilter}
+            setStockFilter={setStockFilter}
+            categories={categories}
+            onClearFilters={clearFilters}
+            activeFiltersCount={activeFiltersCount}
+          />
+        </CardContent>
+      </Card>
+
       {/* Product Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Product Inventory ({products.length} items)</CardTitle>
+          <CardTitle>
+            Products ({filteredProducts.length} of {products.length} items)
+            {activeFiltersCount > 0 && (
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                - {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} applied
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -105,12 +186,11 @@ export const ProductTable = () => {
                   <th className="text-left py-3 px-4 font-medium text-gray-600">SKU</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Stock</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600" hidden>AI Recommendation</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <tr key={product.id} className="border-b hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
@@ -139,11 +219,6 @@ export const ProductTable = () => {
                         {product.status}
                       </Badge>
                     </td>
-                    <td className="py-4 px-4" hidden>
-                      <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded-lg max-w-xs">
-                        {product.aiRecommendation}
-                      </div>
-                    </td>
                     <td className="py-4 px-4">
                       <div className="flex space-x-2">
                         <Button 
@@ -171,7 +246,6 @@ export const ProductTable = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                        
                       </div>
                     </td>
                   </tr>
@@ -180,9 +254,18 @@ export const ProductTable = () => {
             </table>
           </div>
           
-          {products.length === 0 && (
+          {filteredProducts.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              <p>No products found. Create your first product to get started.</p>
+              {activeFiltersCount > 0 ? (
+                <div>
+                  <p>No products found matching your filters.</p>
+                  <Button variant="outline" onClick={clearFilters} className="mt-2">
+                    Clear Filters
+                  </Button>
+                </div>
+              ) : (
+                <p>No products found. Create your first product to get started.</p>
+              )}
             </div>
           )}
         </CardContent>
