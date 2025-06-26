@@ -9,10 +9,11 @@ import { CreateProductForm } from '../inventory/CreateProductForm';
 import { ProductViewDialog } from '../inventory/ProductViewDialog';
 import { ProductEditDialog } from '../inventory/ProductEditDialog';
 import { ProductTableFilters } from './ProductTableFilters';
+import { VirtualList } from '@/components/ui/virtual-list';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
 
-// Memoized row component for better performance
+// Memoized row component for better performance with virtual scrolling
 const ProductTableRow = React.memo(({ 
   product, 
   onView, 
@@ -26,65 +27,59 @@ const ProductTableRow = React.memo(({
   onDelete: (product: Product) => void;
   getStatusColor: (status: string) => string;
 }) => (
-  <tr className="border-b hover:bg-gray-50 transition-colors">
-    <td className="py-4 px-4">
-      <div className="flex items-center gap-3">
-        {product.image && (
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-10 h-10 object-cover rounded"
-            loading="lazy"
-          />
-        )}
-        <div>
-          <div className="font-medium text-gray-900">{product.name}</div>
-          <div className="text-sm text-gray-500">{product.category} • {product.price}</div>
-        </div>
+  <div className="border-b hover:bg-gray-50 transition-colors p-4 grid grid-cols-5 gap-4 items-center min-h-[80px]">
+    <div className="flex items-center gap-3">
+      {product.image && (
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-10 h-10 object-cover rounded"
+          loading="lazy"
+        />
+      )}
+      <div>
+        <div className="font-medium text-gray-900">{product.name}</div>
+        <div className="text-sm text-gray-500">{product.category} • {product.price}</div>
       </div>
-    </td>
-    <td className="py-4 px-4 text-sm font-mono">{product.id}</td>
-    <td className="py-4 px-4">
-      <div className="text-sm">
-        <div className="font-medium">{product.stock} {product.unit}</div>
-        <div className="text-gray-500">Reorder at {product.reorderPoint}</div>
-      </div>
-    </td>
-    <td className="py-4 px-4">
+    </div>
+    <div className="text-sm font-mono">{product.id}</div>
+    <div className="text-sm">
+      <div className="font-medium">{product.stock} {product.unit}</div>
+      <div className="text-gray-500">Reorder at {product.reorderPoint}</div>
+    </div>
+    <div>
       <Badge className={getStatusColor(product.status)}>
         {product.status}
       </Badge>
-    </td>
-    <td className="py-4 px-4">
-      <div className="flex space-x-2">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => onView(product)}
-          title="View Product"
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => onEdit(product)}
-          title="Edit Product"
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => onDelete(product)}
-          title="Delete Product"
-          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </td>
-  </tr>
+    </div>
+    <div className="flex space-x-2">
+      <Button 
+        variant="ghost" 
+        size="sm"
+        onClick={() => onView(product)}
+        title="View Product"
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="sm"
+        onClick={() => onEdit(product)}
+        title="Edit Product"
+      >
+        <Edit className="h-4 w-4" />
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="sm"
+        onClick={() => onDelete(product)}
+        title="Delete Product"
+        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  </div>
 ));
 
 ProductTableRow.displayName = 'ProductTableRow';
@@ -204,6 +199,18 @@ export const ProductTable = React.memo(() => {
     setStockFilter('all');
   }, []);
 
+  // Virtual list render function
+  const renderItem = useCallback((product: Product, index: number) => (
+    <ProductTableRow
+      key={product.id}
+      product={product}
+      onView={handleViewProduct}
+      onEdit={handleEditProduct}
+      onDelete={handleDeleteProduct}
+      getStatusColor={getStatusColor}
+    />
+  ), [handleViewProduct, handleEditProduct, handleDeleteProduct, getStatusColor]);
+
   return (
     <div className="space-y-6">
       {/* Header with Create Button */}
@@ -246,7 +253,7 @@ export const ProductTable = React.memo(() => {
         </CardContent>
       </Card>
 
-      {/* Product Table */}
+      {/* Product Table with Virtual Scrolling */}
       <Card>
         <CardHeader>
           <CardTitle>
@@ -259,33 +266,26 @@ export const ProductTable = React.memo(() => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">SKU</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Stock</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((product) => (
-                  <ProductTableRow
-                    key={product.id}
-                    product={product}
-                    onView={handleViewProduct}
-                    onEdit={handleEditProduct}
-                    onDelete={handleDeleteProduct}
-                    getStatusColor={getStatusColor}
-                  />
-                ))}
-              </tbody>
-            </table>
+          {/* Table Header */}
+          <div className="grid grid-cols-5 gap-4 p-4 border-b font-medium text-gray-600 bg-gray-50">
+            <div>Product</div>
+            <div>SKU</div>
+            <div>Stock</div>
+            <div>Status</div>
+            <div>Actions</div>
           </div>
           
-          {filteredProducts.length === 0 && (
+          {/* Virtual List Container */}
+          {filteredProducts.length > 0 ? (
+            <VirtualList
+              items={filteredProducts}
+              itemHeight={80} // Fixed height for each row
+              containerHeight={400} // Show approximately 5 items (5 * 80 = 400px)
+              renderItem={renderItem}
+              overscan={2} // Render 2 extra items outside viewport for smooth scrolling
+              className="border rounded-lg"
+            />
+          ) : (
             <div className="text-center py-8 text-gray-500">
               {activeFiltersCount > 0 ? (
                 <div>
@@ -320,4 +320,3 @@ export const ProductTable = React.memo(() => {
 });
 
 ProductTable.displayName = 'ProductTable';
-
