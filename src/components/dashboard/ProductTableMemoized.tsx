@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +9,10 @@ import { ProductViewDialog } from '../inventory/ProductViewDialog';
 import { ProductEditDialog } from '../inventory/ProductEditDialog';
 import { ProductTableFilters } from './ProductTableFilters';
 import { VirtualList } from '@/components/ui/virtual-list';
+import { LazyImage } from '@/components/optimized/LazyImage';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // Memoized row component for better performance with virtual scrolling
 const ProductTableRow = React.memo(({ 
@@ -30,11 +31,11 @@ const ProductTableRow = React.memo(({
   <div className="border-b hover:bg-gray-50 transition-colors p-4 grid grid-cols-5 gap-4 items-center min-h-[80px]">
     <div className="flex items-center gap-3">
       {product.image && (
-        <img
+        <LazyImage
           src={product.image}
           alt={product.name}
           className="w-10 h-10 object-cover rounded"
-          loading="lazy"
+          placeholder="/placeholder.svg"
         />
       )}
       <div>
@@ -92,24 +93,29 @@ export const ProductTable = React.memo(() => {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  // Filter states
+  // Filter states with debouncing for search
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
+
+  // Debounce search term for better performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Memoized categories to prevent recalculation
   const categories = useMemo(() => {
     return [...new Set(products.map(p => p.category))];
   }, [products]);
 
-  // Memoized filtered products with optimized filtering
+  // Optimized filtered products with debounced search
   const filteredProducts = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase();
+    if (!products.length) return [];
+    
+    const searchLower = debouncedSearchTerm.toLowerCase();
     
     return products.filter(product => {
       // Early returns for better performance
-      if (searchTerm && !product.name.toLowerCase().includes(searchLower) &&
+      if (debouncedSearchTerm && !product.name.toLowerCase().includes(searchLower) &&
           !product.sku.toLowerCase().includes(searchLower) &&
           !product.category.toLowerCase().includes(searchLower)) {
         return false;
@@ -136,7 +142,7 @@ export const ProductTable = React.memo(() => {
       
       return true;
     });
-  }, [products, searchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [products, debouncedSearchTerm, categoryFilter, statusFilter, stockFilter]);
 
   // Memoized active filters count
   const activeFiltersCount = useMemo(() => {
@@ -199,10 +205,10 @@ export const ProductTable = React.memo(() => {
     setStockFilter('all');
   }, []);
 
-  // Virtual list render function
+  // Optimized virtual list render function
   const renderItem = useCallback((product: Product, index: number) => (
     <ProductTableRow
-      key={product.id}
+      key={`${product.id}-${index}`}
       product={product}
       onView={handleViewProduct}
       onEdit={handleEditProduct}
@@ -253,7 +259,7 @@ export const ProductTable = React.memo(() => {
         </CardContent>
       </Card>
 
-      {/* Product Table with Virtual Scrolling */}
+      {/* Product Table with Optimized Virtual Scrolling */}
       <Card>
         <CardHeader>
           <CardTitle>
@@ -275,14 +281,14 @@ export const ProductTable = React.memo(() => {
             <div>Actions</div>
           </div>
           
-          {/* Virtual List Container */}
+          {/* Optimized Virtual List Container */}
           {filteredProducts.length > 0 ? (
             <VirtualList
               items={filteredProducts}
-              itemHeight={80} // Fixed height for each row
-              containerHeight={400} // Show approximately 5 items (5 * 80 = 400px)
+              itemHeight={80}
+              containerHeight={320} // Reduced to show only 4 items initially (4 * 80 = 320px)
               renderItem={renderItem}
-              overscan={2} // Render 2 extra items outside viewport for smooth scrolling
+              overscan={1} // Reduced overscan for better performance
               className="border rounded-lg"
             />
           ) : (
