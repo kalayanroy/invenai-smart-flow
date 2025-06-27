@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocalStorage } from './useLocalStorage';
@@ -23,11 +24,12 @@ export interface Product {
 
 const CACHE_KEY = 'inventory_products';
 const CACHE_EXPIRY_MINUTES = 15; // Cache for 15 minutes
+const PRODUCTS_PER_CACHE_CHUNK = 50; // Store products in smaller chunks
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const { setItem, getItem, removeItem, isCacheValid } = useLocalStorage();
+  const { setItem, getItem, removeItem, isCacheValid, getStorageInfo } = useLocalStorage();
 
   // Load products from cache or Supabase on mount
   useEffect(() => {
@@ -95,8 +97,18 @@ export const useProducts = () => {
       console.log('Mapped products:', mappedProducts);
       setProducts(mappedProducts);
       
-      // Cache the products
-      setItem(CACHE_KEY, mappedProducts, CACHE_EXPIRY_MINUTES);
+      // Cache the products with compression handling
+      console.log('Attempting to cache products...');
+      const storageInfo = getStorageInfo();
+      console.log(`Storage usage: ${storageInfo.usedMB}MB (${storageInfo.percentageUsed}%)`);
+      
+      // Only cache if we have a reasonable amount of products
+      if (mappedProducts.length <= 200) {
+        setItem(CACHE_KEY, mappedProducts, CACHE_EXPIRY_MINUTES);
+      } else {
+        console.warn('Too many products to cache effectively. Skipping cache for performance.');
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
