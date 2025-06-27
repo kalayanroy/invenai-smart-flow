@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,13 +9,12 @@ import { CreateProductForm } from '../inventory/CreateProductForm';
 import { ProductViewDialog } from '../inventory/ProductViewDialog';
 import { ProductEditDialog } from '../inventory/ProductEditDialog';
 import { ProductTableFilters } from './ProductTableFilters';
-import { VirtualList } from '@/components/ui/virtual-list';
 import { LazyImage } from '@/components/optimized/LazyImage';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
 
-// Memoized row component for better performance with virtual scrolling
+// Memoized row component for better performance
 const ProductTableRow = React.memo(({ 
   product, 
   onView, 
@@ -99,6 +99,11 @@ export const ProductTable = React.memo(() => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
 
+  // Pagination states
+  const [displayedCount, setDisplayedCount] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -144,6 +149,16 @@ export const ProductTable = React.memo(() => {
     });
   }, [products, debouncedSearchTerm, categoryFilter, statusFilter, stockFilter]);
 
+  // Products to display (with pagination)
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, displayedCount);
+  }, [filteredProducts, displayedCount]);
+
+  // Reset displayed count when filters change
+  useEffect(() => {
+    setDisplayedCount(10);
+  }, [debouncedSearchTerm, categoryFilter, statusFilter, stockFilter]);
+
   // Memoized active filters count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -164,6 +179,23 @@ export const ProductTable = React.memo(() => {
       default: return 'bg-gray-100 text-gray-800';
     }
   }, []);
+
+  // Scroll handler for infinite loading
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    const threshold = 100; // Load more when 100px from bottom
+    
+    if (element.scrollHeight - element.scrollTop - element.clientHeight < threshold) {
+      if (displayedCount < filteredProducts.length && !isLoadingMore) {
+        setIsLoadingMore(true);
+        // Simulate loading delay for better UX
+        setTimeout(() => {
+          setDisplayedCount(prev => Math.min(prev + 10, filteredProducts.length));
+          setIsLoadingMore(false);
+        }, 300);
+      }
+    }
+  }, [displayedCount, filteredProducts.length, isLoadingMore]);
 
   // Memoized event handlers
   const handleViewProduct = useCallback((product: Product) => {
@@ -205,17 +237,15 @@ export const ProductTable = React.memo(() => {
     setStockFilter('all');
   }, []);
 
-  // Optimized virtual list render function
-  const renderItem = useCallback((product: Product, index: number) => (
-    <ProductTableRow
-      key={`${product.id}-${index}`}
-      product={product}
-      onView={handleViewProduct}
-      onEdit={handleEditProduct}
-      onDelete={handleDeleteProduct}
-      getStatusColor={getStatusColor}
-    />
-  ), [handleViewProduct, handleEditProduct, handleDeleteProduct, getStatusColor]);
+  const loadMoreProducts = useCallback(() => {
+    if (displayedCount < filteredProducts.length && !isLoadingMore) {
+      setIsLoadingMore(true);
+      setTimeout(() => {
+        setDisplayedCount(prev => Math.min(prev + 10, filteredProducts.length));
+        setIsLoadingMore(false);
+      }, 300);
+    }
+  }, [displayedCount, filteredProducts.length, isLoadingMore]);
 
   return (
     <div className="space-y-6">
@@ -259,11 +289,11 @@ export const ProductTable = React.memo(() => {
         </CardContent>
       </Card>
 
-      {/* Product Table with Optimized Virtual Scrolling */}
+      {/* Product Table with Pagination */}
       <Card>
         <CardHeader>
           <CardTitle>
-            Products ({filteredProducts.length} of {products.length} items)
+            Products (showing {displayedProducts.length} of {filteredProducts.length} items)
             {activeFiltersCount > 0 && (
               <span className="text-sm font-normal text-gray-500 ml-2">
                 - {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} applied
@@ -281,16 +311,51 @@ export const ProductTable = React.memo(() => {
             <div>Actions</div>
           </div>
           
-          {/* Optimized Virtual List Container */}
+          {/* Scrollable Product List */}
           {filteredProducts.length > 0 ? (
-            <VirtualList
-              items={filteredProducts}
-              itemHeight={80}
-              containerHeight={320} // Reduced to show only 4 items initially (4 * 80 = 320px)
-              renderItem={renderItem}
-              overscan={1} // Reduced overscan for better performance
-              className="border rounded-lg"
-            />
+            <div 
+              ref={scrollContainerRef}
+              className="max-h-[600px] overflow-y-auto border rounded-lg"
+              onScroll={handleScroll}
+            >
+              {displayedProducts.map((product) => (
+                <ProductTableRow
+                  key={product.id}
+                  product={product}
+                  onView={handleViewProduct}
+                  onEdit={handleEditProduct}
+                  onDelete={handleDeleteProduct}
+                  getStatusColor={getStatusColor}
+                />
+              ))}
+              
+              {/* Loading indicator */}
+              {isLoadingMore && (
+                <div className="p-4 text-center text-gray-500">
+                  <div className="animate-pulse">Loading more products...</div>
+                </div>
+              )}
+              
+              {/* Load More Button (backup for manual loading) */}
+              {displayedCount < filteredProducts.length && !isLoadingMore && (
+                <div className="p-4 text-center border-t">
+                  <Button 
+                    variant="outline" 
+                    onClick={loadMoreProducts}
+                    className="w-full max-w-xs"
+                  >
+                    Load More Products ({filteredProducts.length - displayedCount} remaining)
+                  </Button>
+                </div>
+              )}
+              
+              {/* End of list indicator */}
+              {displayedCount >= filteredProducts.length && filteredProducts.length > 10 && (
+                <div className="p-4 text-center text-gray-500 border-t">
+                  <small>All products loaded ({filteredProducts.length} total)</small>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
               {activeFiltersCount > 0 ? (
