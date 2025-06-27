@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useLocalStorage } from './useLocalStorage';
 
 export interface Product {
   id: string;
@@ -21,13 +21,41 @@ export interface Product {
   createdAt: string;
 }
 
+const CACHE_KEY = 'inventory_products';
+const CACHE_EXPIRY_MINUTES = 15; // Cache for 15 minutes
+
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { setItem, getItem, removeItem, isCacheValid } = useLocalStorage();
 
-  // Load products from Supabase on mount
+  // Load products from cache or Supabase on mount
   useEffect(() => {
-    fetchProducts();
+    loadProducts();
   }, []);
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      
+      // Try to get from cache first
+      const cachedProducts = getItem<Product[]>(CACHE_KEY);
+      
+      if (cachedProducts && isCacheValid(CACHE_KEY)) {
+        console.log('Loading products from cache');
+        setProducts(cachedProducts);
+        setLoading(false);
+        return;
+      }
+
+      // If no cache or expired, fetch from database
+      console.log('Cache miss or expired, fetching from database');
+      await fetchProducts();
+    } catch (error) {
+      console.error('Error loading products:', error);
+      setLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -39,6 +67,7 @@ export const useProducts = () => {
 
       if (error) {
         console.error('Error fetching products:', error);
+        setLoading(false);
         return;
       }
 
@@ -65,9 +94,19 @@ export const useProducts = () => {
 
       console.log('Mapped products:', mappedProducts);
       setProducts(mappedProducts);
+      
+      // Cache the products
+      setItem(CACHE_KEY, mappedProducts, CACHE_EXPIRY_MINUTES);
+      setLoading(false);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
+      setLoading(false);
     }
+  };
+
+  const invalidateCache = () => {
+    removeItem(CACHE_KEY);
+    console.log('Product cache invalidated');
   };
 
   const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'aiRecommendation' | 'createdAt'>) => {
@@ -115,6 +154,7 @@ export const useProducts = () => {
       }
 
       console.log('Product successfully added to Supabase:', data);
+      invalidateCache(); // Clear cache to force refresh
       await fetchProducts(); // Refresh the list
       return data;
     } catch (error) {
@@ -155,6 +195,7 @@ export const useProducts = () => {
       }
 
       console.log('Product updated successfully in Supabase');
+      invalidateCache(); // Clear cache to force refresh
       await fetchProducts(); // Refresh the list
     } catch (error) {
       console.error('Error in updateProduct:', error);
@@ -182,6 +223,7 @@ export const useProducts = () => {
       }
 
       console.log('Product deleted successfully from Supabase');
+      invalidateCache(); // Clear cache to force refresh
       await fetchProducts(); // Refresh the list
     } catch (error) {
       console.error('Error in deleteProduct:', error);
@@ -208,6 +250,7 @@ export const useProducts = () => {
       }
 
       console.log('All products cleared from Supabase');
+      invalidateCache(); // Clear cache
       setProducts([]);
     } catch (error) {
       console.error('Error in clearAllProducts:', error);
@@ -215,13 +258,21 @@ export const useProducts = () => {
     }
   };
 
+  const refreshProducts = async () => {
+    invalidateCache();
+    await fetchProducts();
+  };
+
   return {
     products,
+    loading,
     addProduct,
     updateProduct,
     deleteProduct,
     getProduct,
     clearAllProducts,
-    fetchProducts
+    fetchProducts,
+    refreshProducts,
+    invalidateCache
   };
 };
