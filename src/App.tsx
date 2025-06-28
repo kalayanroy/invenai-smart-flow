@@ -11,6 +11,14 @@ import { Suspense, lazy } from "react";
 const Index = lazy(() => import("./pages/Index"));
 const Login = lazy(() => import("./pages/Login"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Purchases = lazy(() => import("./pages/Purchases"));
+const Sales = lazy(() => import("./pages/Sales"));
+const Returns = lazy(() => import("./pages/Returns"));
+const Stock = lazy(() => import("./pages/Stock"));
+const Categories = lazy(() => import("./pages/Categories"));
+const Settings = lazy(() => import("./pages/Settings"));
+const POS = lazy(() => import("./pages/POS"));
 
 const queryClient = new QueryClient();
 
@@ -45,6 +53,46 @@ const App = () => (
             <Route path="/" element={
               <ProtectedRoute>
                 <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/inventory" element={
+              <ProtectedRoute>
+                <Inventory />
+              </ProtectedRoute>
+            } />
+            <Route path="/purchases" element={
+              <ProtectedRoute>
+                <Purchases />
+              </ProtectedRoute>
+            } />
+            <Route path="/sales" element={
+              <ProtectedRoute>
+                <Sales />
+              </ProtectedRoute>
+            } />
+            <Route path="/returns" element={
+              <ProtectedRoute>
+                <Returns />
+              </ProtectedRoute>
+            } />
+            <Route path="/stock" element={
+              <ProtectedRoute>
+                <Stock />
+              </ProtectedRoute>
+            } />
+            <Route path="/categories" element={
+              <ProtectedRoute>
+                <Categories />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/pos" element={
+              <ProtectedRoute>
+                <POS />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
