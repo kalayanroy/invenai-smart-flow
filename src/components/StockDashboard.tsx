@@ -15,9 +15,10 @@ const InventoryChart = lazy(() =>
     .then(module => ({ default: module.InventoryChart }))
 );
 
-const ProductTable = lazy(() => 
-  import('@/components/dashboard/ProductTableMemoized')
-    .then(module => ({ default: module.ProductTable }))
+// Use the new optimized product table
+const ProductTableOptimized = lazy(() => 
+  import('@/components/dashboard/ProductTableOptimized')
+    .then(module => ({ default: module.ProductTableOptimized }))
 );
 
 const AlertsPanel = lazy(() => 
@@ -142,7 +143,7 @@ export const StockDashboard = React.memo(() => {
 
           <TabsContent value="inventory" className="mt-4">
             <Suspense fallback={<FastSkeleton />}>
-              <ProductTable />
+              <ProductTableOptimized />
             </Suspense>
           </TabsContent>
 
