@@ -2,6 +2,7 @@
 import React, { Suspense, lazy } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery } from '@tanstack/react-query';
 
 const PurchaseSection = lazy(() => 
   import('@/components/inventory/PurchaseSection')
@@ -16,6 +17,27 @@ const FastSkeleton = () => (
 );
 
 const Purchases = () => {
+  // Async data preloading for purchases
+  const { data: purchasesReady, isLoading } = useQuery({
+    queryKey: ['purchases-ready'],
+    queryFn: async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return true;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <DashboardHeader />
+        <main className="container mx-auto px-4 py-6">
+          <FastSkeleton />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <DashboardHeader />

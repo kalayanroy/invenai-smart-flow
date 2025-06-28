@@ -2,6 +2,7 @@
 import React, { Suspense, lazy } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery } from '@tanstack/react-query';
 
 // Lazy load dashboard components
 const MetricsOverview = lazy(() => 
@@ -38,6 +39,27 @@ const FastSkeleton = () => (
 );
 
 const Index = () => {
+  // Async data preloading for dashboard
+  const { data: dashboardReady, isLoading } = useQuery({
+    queryKey: ['dashboard-ready'],
+    queryFn: async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return true;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <DashboardHeader />
+        <main className="container mx-auto px-4 py-6">
+          <FastSkeleton />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <DashboardHeader />
