@@ -93,7 +93,7 @@ export const ProductSelector = ({
                   </div>
                 </CommandItem>
               ))}
-              {hasMore && (
+              {true && (
                 <div className="text-center text-sm p-2 text-muted-foreground">Loading more...</div>
               )}
             </CommandGroup>
