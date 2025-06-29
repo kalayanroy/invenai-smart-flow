@@ -27,6 +27,7 @@ export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -34,11 +35,13 @@ export const useProducts = () => {
   }, []);
 
   const loadMoreProducts = async () => {
-    if (!hasMore) return;
+    if (!hasMore || isLoading) return;
+    
+    setIsLoading(true);
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    console.log("Fetching next page...");
+    console.log(`Fetching products from ${from} to ${to}...`);
     const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -47,11 +50,15 @@ export const useProducts = () => {
 
     if (error) {
       console.error('Error fetching products:', error);
+      setIsLoading(false);
       return;
     }
 
-    if (data.length < PAGE_SIZE) {
-      setHasMore(false); // no more data
+    console.log(`Fetched ${data?.length || 0} products`);
+
+    if (!data || data.length < PAGE_SIZE) {
+      console.log('No more products to load');
+      setHasMore(false);
     }
 
     const mapped = data.map(product => ({
@@ -75,26 +82,35 @@ export const useProducts = () => {
 
     setProducts(prev => [...prev, ...mapped]);
     setPage(prev => prev + 1);
+    setIsLoading(false);
   };
 
   const fetchProducts = async () => {
     try {
-       const from = 0 * PAGE_SIZE;
-       const to = from + PAGE_SIZE - 1;
-
+      setIsLoading(true);
       console.log('Fetching products from Supabase...');
+      
+      // Reset pagination state
+      setPage(0);
+      setHasMore(true);
+      
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
-        .range(from, to);
+        .range(0, PAGE_SIZE - 1);
 
       if (error) {
         console.error('Error fetching products:', error);
+        setIsLoading(false);
         return;
       }
 
       console.log('Raw products data from Supabase:', data);
+
+      if (!data || data.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
 
       const mappedProducts = data.map(product => ({
         id: product.id,
@@ -117,8 +133,11 @@ export const useProducts = () => {
 
       console.log('Mapped products:', mappedProducts);
       setProducts(mappedProducts);
+      setPage(1);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
+      setIsLoading(false);
     }
   };
 
@@ -274,6 +293,7 @@ export const useProducts = () => {
     clearAllProducts,
     fetchProducts,
     loadMoreProducts,
-    hasMore
+    hasMore,
+    isLoading
   };
 };
