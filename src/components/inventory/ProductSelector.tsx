@@ -146,6 +146,15 @@ export const ProductSelector = ({
     }
   }, [isLoading, hasMore, loadMoreProducts]);
 
+  // Handle product selection
+  const handleProductSelect = useCallback((productId: string, productName: string) => {
+    console.log('Product selected:', { productId, productName });
+    onProductSelect(productId);
+    onOpenChange(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  }, [onProductSelect, onOpenChange]);
+
   // Combine loaded products with search results, removing duplicates
   const displayProducts = React.useMemo(() => {
     if (searchQuery && searchResults.length > 0) {
@@ -175,7 +184,7 @@ export const ProductSelector = ({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-full p-0 bg-white border shadow-lg z-50" align="start">
         <Command>
           <CommandInput 
             placeholder="Search products..." 
@@ -191,11 +200,8 @@ export const ProductSelector = ({
               {displayProducts.map((product) => (
                 <CommandItem
                   key={product.id}
-                  value={product.name}
-                  onSelect={() => {
-                    onProductSelect(product.id);
-                    onOpenChange(false);
-                  }}
+                  value={`${product.name}-${product.id}`}
+                  onSelect={() => handleProductSelect(product.id, product.name)}
                 >
                   <Check
                     className={cn(

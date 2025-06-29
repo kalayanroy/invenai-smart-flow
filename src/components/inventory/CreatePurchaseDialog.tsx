@@ -69,12 +69,14 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
       const product = products.find(p => p.id === value);
       if (product) {
         updatedItems[index].productName = product.name;
-        updatedItems[index].unitPrice = parseFloat(product.purchasePrice.replace('৳', '')) || 0;
-        updatedItems[index].totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
+        // Clean the price string and convert to number
+        const priceString = product.purchasePrice.replace(/[^\d.-]/g, '');
+        updatedItems[index].unitPrice = parseFloat(priceString) || 0;
       }
     }
     
-    if (field === 'quantity' || field === 'unitPrice') {
+    // Recalculate total amount whenever quantity or unit price changes
+    if (field === 'quantity' || field === 'unitPrice' || field === 'productId') {
       updatedItems[index].totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
     }
     
@@ -88,7 +90,7 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
   };
 
   const getTotalAmount = () => {
-    return items.reduce((sum, item) => sum + item.totalAmount, 0);
+    return items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -97,6 +99,12 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     const validItems = items.filter(item => item.productId && item.quantity > 0);
     
     if (validItems.length === 0) {
+      alert('Please add at least one valid item');
+      return;
+    }
+
+    if (!formData.supplier.trim()) {
+      alert('Please enter supplier name');
       return;
     }
 
@@ -124,7 +132,7 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     setOpenProductSelectors([false]);
   };
 
-  const isFormValid = items.some(item => item.productId && item.quantity > 0) && formData.supplier;
+  const isFormValid = items.some(item => item.productId && item.quantity > 0) && formData.supplier.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
