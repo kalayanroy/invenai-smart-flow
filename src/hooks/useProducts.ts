@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Product {
@@ -23,139 +23,94 @@ export interface Product {
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
   const PAGE_SIZE = 10;
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  const mapProductFromDb = (product: any): Product => ({
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    barcode: product.barcode || '',
+    category: product.category,
+    stock: product.stock,
+    reorderPoint: product.reorder_point,
+    price: product.price,
+    purchasePrice: product.purchase_price,
+    sellPrice: product.sell_price,
+    openingStock: product.opening_stock,
+    unit: product.unit,
+    status: product.status,
+    aiRecommendation: product.ai_recommendation || '',
+    image: product.image,
+    createdAt: product.created_at
+  });
 
-  const loadMoreProducts = async () => {
-    if (!hasMore || isLoading) {
-      console.log('Cannot load more:', { hasMore, isLoading });
-      return;
-    }
-    
-    setIsLoading(true);
-    console.log(`Loading more products - page: ${page + 1}`);
-    
-    const from = (page + 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
-    console.log(`Fetching products from ${from} to ${to}...`);
-    
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (error) {
-      console.error('Error loading more products:', error);
-      setIsLoading(false);
-      return;
-    }
-
-    console.log(`Loaded ${data?.length || 0} more products`);
-
-    if (!data || data.length === 0) {
-      console.log('No more products available');
-      setHasMore(false);
-      setIsLoading(false);
-      return;
-    }
-
-    if (data.length < PAGE_SIZE) {
-      console.log('Reached end of products');
-      setHasMore(false);
-    }
-
-    const mappedProducts = data.map(product => ({
-      id: product.id,
-      name: product.name,
-      sku: product.sku,
-      barcode: product.barcode || '',
-      category: product.category,
-      stock: product.stock,
-      reorderPoint: product.reorder_point,
-      price: product.price,
-      purchasePrice: product.purchase_price,
-      sellPrice: product.sell_price,
-      openingStock: product.opening_stock,
-      unit: product.unit,
-      status: product.status,
-      aiRecommendation: product.ai_recommendation || '',
-      image: product.image,
-      createdAt: product.created_at
-    }));
-
-    setProducts(prev => [...prev, ...mappedProducts]);
-    setPage(prev => prev + 1);
-    setIsLoading(false);
-  };
-
-  const fetchProducts = async () => {
+  const fetchProducts = async (reset = false) => {
     try {
       setIsLoading(true);
-      console.log('Initial fetch of products...');
       
-      // Reset state
-      setPage(0);
-      setHasMore(true);
-      
+      if (reset) {
+        setCurrentPage(0);
+        setHasMore(true);
+        setProducts([]);
+      }
+
+      const pageToFetch = reset ? 0 : currentPage;
+      const from = pageToFetch * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      console.log(`Fetching products: page ${pageToFetch}, from ${from} to ${to}`);
+
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
-        .range(0, PAGE_SIZE - 1);
+        .range(from, to);
 
       if (error) {
         console.error('Error fetching products:', error);
-        setIsLoading(false);
         return;
       }
 
-      console.log(`Initial fetch: ${data?.length || 0} products loaded`);
+      const mappedProducts = data?.map(mapProductFromDb) || [];
+      console.log(`Fetched ${mappedProducts.length} products`);
 
-      if (!data || data.length === 0) {
-        setProducts([]);
-        setHasMore(false);
-        setIsLoading(false);
-        return;
+      if (reset) {
+        setProducts(mappedProducts);
+      } else {
+        setProducts(prev => [...prev, ...mappedProducts]);
       }
 
-      if (data.length < PAGE_SIZE) {
-        setHasMore(false);
+      // Check if we have more products to load
+      setHasMore(mappedProducts.length === PAGE_SIZE);
+      
+      if (!reset) {
+        setCurrentPage(prev => prev + 1);
       }
 
-      const mappedProducts = data.map(product => ({
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        barcode: product.barcode || '',
-        category: product.category,
-        stock: product.stock,
-        reorderPoint: product.reorder_point,
-        price: product.price,
-        purchasePrice: product.purchase_price,
-        sellPrice: product.sell_price,
-        openingStock: product.opening_stock,
-        unit: product.unit,
-        status: product.status,
-        aiRecommendation: product.ai_recommendation || '',
-        image: product.image,
-        createdAt: product.created_at
-      }));
-
-      setProducts(mappedProducts);
-      setIsLoading(false);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
+    } finally {
       setIsLoading(false);
     }
   };
+
+  const loadMoreProducts = useCallback(async () => {
+    if (isLoading || !hasMore) {
+      console.log('Cannot load more:', { isLoading, hasMore });
+      return;
+    }
+
+    console.log('Loading more products...');
+    await fetchProducts(false);
+  }, [isLoading, hasMore, currentPage]);
+
+  // Initial load
+  useEffect(() => {
+    fetchProducts(true);
+  }, []);
 
   const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'aiRecommendation' | 'createdAt'>) => {
     try {
@@ -186,8 +141,6 @@ export const useProducts = () => {
         image: cleanImage
       };
 
-      console.log('Prepared product data for Supabase:', newProduct);
-
       const { data, error } = await supabase
         .from('products')
         .insert([newProduct])
@@ -200,7 +153,7 @@ export const useProducts = () => {
       }
 
       console.log('Product successfully added to Supabase:', data);
-      await fetchProducts();
+      await fetchProducts(true);
       return data;
     } catch (error) {
       console.error('Error in addProduct:', error);
@@ -240,7 +193,7 @@ export const useProducts = () => {
       }
 
       console.log('Product updated successfully in Supabase');
-      await fetchProducts();
+      await fetchProducts(true);
     } catch (error) {
       console.error('Error in updateProduct:', error);
       throw error;
@@ -267,7 +220,7 @@ export const useProducts = () => {
       }
 
       console.log('Product deleted successfully from Supabase');
-      await fetchProducts();
+      await fetchProducts(true);
     } catch (error) {
       console.error('Error in deleteProduct:', error);
       throw error;
@@ -294,6 +247,8 @@ export const useProducts = () => {
 
       console.log('All products cleared from Supabase');
       setProducts([]);
+      setCurrentPage(0);
+      setHasMore(true);
     } catch (error) {
       console.error('Error in clearAllProducts:', error);
       throw error;
@@ -307,7 +262,7 @@ export const useProducts = () => {
     deleteProduct,
     getProduct,
     clearAllProducts,
-    fetchProducts,
+    fetchProducts: () => fetchProducts(true),
     loadMoreProducts,
     hasMore,
     isLoading

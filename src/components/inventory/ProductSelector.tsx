@@ -33,39 +33,41 @@ export const ProductSelector = ({
   isLoading = false
 }: ProductSelectorProps) => {
   const selectedProduct = products.find(p => p.id === selectedProductId);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const handleScroll = useCallback((e: Event) => {
-    const target = e.target as HTMLDivElement;
-    if (!target || !hasMore || isLoading) return;
+  const handleScroll = useCallback(() => {
+    const listElement = listRef.current;
+    if (!listElement || !hasMore || isLoading) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = target;
-    const threshold = 10; // pixels from bottom
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - threshold;
-    
-    if (isNearBottom) {
-      console.log("Scroll threshold reached, loading more products...");
+    const { scrollTop, scrollHeight, clientHeight } = listElement;
+    const scrollThreshold = 50; // Load more when 50px from bottom
+
+    if (scrollTop + clientHeight >= scrollHeight - scrollThreshold) {
+      console.log('Scroll threshold reached, loading more products...');
       loadMoreProducts();
     }
   }, [hasMore, isLoading, loadMoreProducts]);
 
+  // Attach scroll listener when dropdown opens
   useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
+    if (!open) return;
 
-    // Add scroll event listener
-    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+    const listElement = listRef.current;
+    if (!listElement) return;
+
+    listElement.addEventListener('scroll', handleScroll, { passive: true });
     
     return () => {
-      scrollElement.removeEventListener("scroll", handleScroll);
+      listElement.removeEventListener('scroll', handleScroll);
     };
-  }, [handleScroll]);
+  }, [open, handleScroll]);
 
   const handleLoadMoreClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
     if (!isLoading && hasMore) {
-      console.log("Load More button clicked");
+      console.log('Load More button clicked');
       loadMoreProducts();
     }
   }, [isLoading, hasMore, loadMoreProducts]);
@@ -86,9 +88,9 @@ export const ProductSelector = ({
       <PopoverContent className="w-full p-0" align="start">
         <Command>
           <CommandInput placeholder="Search products..." />
-          <CommandList ref={scrollRef} className="max-h-60 overflow-y-auto">
+          <CommandList ref={listRef} className="max-h-60 overflow-y-auto">
             <CommandEmpty>
-              {isLoading ? "Loading products..." : "No product found."}
+              {isLoading && products.length === 0 ? "Loading products..." : "No product found."}
             </CommandEmpty>
             <CommandGroup>
               {products.map((product) => (
@@ -109,24 +111,33 @@ export const ProductSelector = ({
                   {product.name}
                 </CommandItem>
               ))}
-              {hasMore && (
+              
+              {/* Loading indicator */}
+              {isLoading && products.length > 0 && (
+                <div className="p-2 text-center text-sm text-gray-500">
+                  <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
+                  Loading more products...
+                </div>
+              )}
+              
+              {/* Load More button */}
+              {hasMore && !isLoading && products.length > 0 && (
                 <div className="p-2 border-t bg-gray-50">
                   <Button
                     onClick={handleLoadMoreClick}
                     className="w-full h-8 text-xs"
                     variant="outline"
-                    disabled={isLoading}
                     size="sm"
                   >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      `Load More (${products.length} loaded)`
-                    )}
+                    Load More ({products.length} loaded)
                   </Button>
+                </div>
+              )}
+              
+              {/* No more products indicator */}
+              {!hasMore && products.length > 0 && (
+                <div className="p-2 text-center text-xs text-gray-500 border-t">
+                  All products loaded ({products.length} total)
                 </div>
               )}
             </CommandGroup>
