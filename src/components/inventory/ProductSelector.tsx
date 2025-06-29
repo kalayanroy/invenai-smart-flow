@@ -1,11 +1,12 @@
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/hooks/useProducts';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProductSelectorProps {
   products: Product[];
@@ -34,13 +35,16 @@ export const ProductSelector = ({
 }: ProductSelectorProps) => {
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const listRef = useRef<HTMLDivElement>(null);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Handle scroll for lazy loading
   const handleScroll = useCallback(() => {
     if (!listRef.current || !hasMore || isLoading) return;
 
     const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-    const threshold = 100; // pixels from bottom
+    const threshold = 100;
 
     if (scrollTop + clientHeight >= scrollHeight - threshold) {
       console.log('Scroll threshold reached, loading more products...');
@@ -62,6 +66,63 @@ export const ProductSelector = ({
       listElement.removeEventListener('scroll', throttledScroll);
     };
   }, [open, handleScroll]);
+
+  // Search products in database
+  const searchProducts = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      console.log('Searching products in database:', query);
+      
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .or(`name.ilike.%${query}%,sku.ilike.%${query}%,barcode.ilike.%${query}%`)
+        .order('name')
+        .limit(20);
+
+      if (error) {
+        console.error('Error searching products:', error);
+        return;
+      }
+
+      const mappedProducts = data.map(product => ({
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode || '',
+        category: product.category,
+        stock: product.stock,
+        reorderPoint: product.reorder_point,
+        price: product.price,
+        purchasePrice: product.purchase_price,
+        sellPrice: product.sell_price,
+        openingStock: product.opening_stock,
+        unit: product.unit,
+        status: product.status,
+        aiRecommendation: product.ai_recommendation || '',
+        image: product.image,
+        createdAt: product.created_at
+      }));
+
+      console.log(`Found ${mappedProducts.length} products matching "${query}"`);
+      setSearchResults(mappedProducts);
+    } catch (error) {
+      console.error('Error in searchProducts:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    searchProducts(value);
+  }, [searchProducts]);
 
   // Throttle function to limit scroll event frequency
   function throttle(func: Function, limit: number) {
@@ -85,6 +146,22 @@ export const ProductSelector = ({
     }
   }, [isLoading, hasMore, loadMoreProducts]);
 
+  // Combine loaded products with search results, removing duplicates
+  const displayProducts = React.useMemo(() => {
+    if (searchQuery && searchResults.length > 0) {
+      // Show search results, but also include already loaded products that match
+      const loadedIds = new Set(products.map(p => p.id));
+      const uniqueSearchResults = searchResults.filter(p => !loadedIds.has(p.id));
+      const matchingLoaded = products.filter(p => 
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+      return [...matchingLoaded, ...uniqueSearchResults];
+    }
+    return products;
+  }, [products, searchResults, searchQuery]);
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -100,13 +177,18 @@ export const ProductSelector = ({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search products..." />
+          <CommandInput 
+            placeholder="Search products..." 
+            onValueChange={handleSearchChange}
+          />
           <CommandList ref={listRef} className="max-h-60 overflow-y-auto">
             <CommandEmpty>
-              {isLoading && products.length === 0 ? "Loading products..." : "No product found."}
+              {isLoading && products.length === 0 ? "Loading products..." : 
+               isSearching ? "Searching..." : 
+               "No product found."}
             </CommandEmpty>
             <CommandGroup>
-              {products.map((product) => (
+              {displayProducts.map((product) => (
                 <CommandItem
                   key={product.id}
                   value={product.name}
@@ -121,20 +203,33 @@ export const ProductSelector = ({
                       selectedProductId === product.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {product.name}
+                  <div className="flex flex-col">
+                    <span>{product.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      SKU: {product.sku} | Price: {product.purchasePrice}
+                    </span>
+                  </div>
                 </CommandItem>
               ))}
               
-              {/* Loading indicator */}
-              {isLoading && (
+              {/* Search loading indicator */}
+              {isSearching && (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm text-gray-500">Searching products...</span>
+                </div>
+              )}
+              
+              {/* Loading indicator for pagination */}
+              {isLoading && !isSearching && (
                 <div className="flex items-center justify-center p-4">
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   <span className="text-sm text-gray-500">Loading more products...</span>
                 </div>
               )}
               
-              {/* Load More button */}
-              {hasMore && !isLoading && products.length > 0 && (
+              {/* Load More button - only show when not searching */}
+              {!searchQuery && hasMore && !isLoading && products.length > 0 && (
                 <div className="p-2 border-t">
                   <Button
                     onClick={handleLoadMoreClick}
@@ -147,8 +242,8 @@ export const ProductSelector = ({
                 </div>
               )}
               
-              {/* No more products indicator */}
-              {!hasMore && products.length > 0 && (
+              {/* No more products indicator - only show when not searching */}
+              {!searchQuery && !hasMore && products.length > 0 && (
                 <div className="p-2 text-center text-xs text-gray-500 border-t">
                   All products loaded ({products.length} total)
                 </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,12 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Trash2, Check, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Trash2 } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { Purchase } from '@/hooks/usePurchases';
+import { ProductSelector } from './ProductSelector';
 
 interface PurchaseItem {
   productId: string;
@@ -37,7 +36,7 @@ interface CreatePurchaseDialogProps {
 }
 
 export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: CreatePurchaseDialogProps) => {
-  const { products } = useProducts();
+  const { products, loadMoreProducts, hasMore, loading } = useProducts();
   const [formData, setFormData] = useState({
     supplier: '',
     status: 'Ordered' as Purchase['status'],
@@ -53,7 +52,6 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
   const addItem = () => {
     setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
     setOpenProductSelectors([...openProductSelectors, false]);
-    console.log(items);
   };
 
   const removeItem = (index: number) => {
@@ -72,10 +70,7 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
       if (product) {
         updatedItems[index].productName = product.name;
         updatedItems[index].unitPrice = parseFloat(product.purchasePrice.replace('৳', '')) || 0;
-        // Automatically calculate total amount when product is selected
         updatedItems[index].totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
-        console.log(updatedItems[index].unitPrice);
-        console.log(updatedItems[index].totalAmount);
       }
     }
     
@@ -99,16 +94,12 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Filter out items that don't have a product selected
     const validItems = items.filter(item => item.productId && item.quantity > 0);
     
     if (validItems.length === 0) {
       return;
     }
 
-    console.log('Submitting purchase order with items:', validItems);
-    
-    // Create purchase order data
     const orderData = {
       supplier: formData.supplier,
       status: formData.status,
@@ -121,7 +112,6 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
       }))
     };
 
-    console.log('Purchase order data:', orderData);
     onPurchaseCreated(orderData);
 
     onOpenChange(false);
@@ -203,52 +193,18 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Product *</Label>
-                      <Popover open={openProductSelectors[index]} onOpenChange={(open) => setProductSelectorOpen(index, open)}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openProductSelectors[index]}
-                            className="w-full justify-between"
-                          >
-                            {item.productId
-                              ? products.find((product) => product.id === item.productId)?.name
-                              : "Select product..."}
-                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="Search products..." />
-                            <CommandList>
-                              <CommandEmpty>No product found.</CommandEmpty>
-                              <CommandGroup>
-                                {products.map((product) => (
-                                  <CommandItem
-                                    key={product.id}
-                                    value={product.name}
-                                    onSelect={() => {
-                                      updateItem(index, 'productId', product.id);
-                                      setProductSelectorOpen(index, false);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        item.productId === product.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex flex-col">
-                                      <span>{product.name}</span>
-                                      <span className="text-sm text-muted-foreground">{product.purchasePrice}</span>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <ProductSelector
+                        products={products}
+                        selectedProductId={item.productId}
+                        onProductSelect={(productId) => updateItem(index, 'productId', productId)}
+                        open={openProductSelectors[index]}
+                        onOpenChange={(open) => setProductSelectorOpen(index, open)}
+                        placeholder="Select product..."
+                        className="w-full"
+                        loadMoreProducts={loadMoreProducts}
+                        hasMore={hasMore}
+                        isLoading={loading}
+                      />
                     </div>
 
                     <div className="space-y-2">
