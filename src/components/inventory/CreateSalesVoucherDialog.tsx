@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { useSales } from '@/hooks/useSales';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSalesReturns } from '@/hooks/useSalesReturns';
 import { useSalesVouchers, SalesVoucherItem } from '@/hooks/useSalesVouchers';
+import { ProductSelector } from './ProductSelector';
 
 interface CreateSalesVoucherDialogProps {
   open: boolean;
@@ -20,10 +22,10 @@ interface CreateSalesVoucherDialogProps {
 
 export const CreateSalesVoucherDialog = ({ open, onOpenChange, onVoucherCreated }: CreateSalesVoucherDialogProps) => {
   const { products, fetchProducts } = useProducts();
-const { sales, fetchSales } = useSales();
-const { purchases, fetchPurchases } = usePurchases();
-const { salesReturns, fetchSalesReturns } = useSalesReturns();
-const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
+  const { sales, fetchSales } = useSales();
+  const { purchases, fetchPurchases } = usePurchases();
+  const { salesReturns, fetchSalesReturns } = useSalesReturns();
+  const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
   const [refreshKey, setRefreshKey] = useState(0);
   
   const [formData, setFormData] = useState({
@@ -61,6 +63,8 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
     { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }
   ]);
 
+  const [productSelectorStates, setProductSelectorStates] = useState<boolean[]>([false]);
+
   // Recalculate totals whenever items or discount changes
   useEffect(() => {
     const newItems = items.map(item => ({
@@ -94,12 +98,20 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
 
   const addItem = () => {
     setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
+    setProductSelectorStates([...productSelectorStates, false]);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
+      setProductSelectorStates(productSelectorStates.filter((_, i) => i !== index));
     }
+  };
+
+  const handleProductSelectorChange = (index: number, open: boolean) => {
+    const newStates = [...productSelectorStates];
+    newStates[index] = open;
+    setProductSelectorStates(newStates);
   };
 
   const calculateTotals = () => {
@@ -140,15 +152,13 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
       await onVoucherCreated(voucherData);
       
       // Automatically refresh products to update stock calculations
-      //await fetchProducts();
-       // ✅ Add missing fetches here
-  await Promise.all([
-    fetchProducts(),
-    fetchSales?.(),
-    fetchPurchases?.(),
-    fetchSalesReturns?.(),
-    fetchSalesVouchers?.(),
-  ]);
+      await Promise.all([
+        fetchProducts(),
+        fetchSales?.(),
+        fetchPurchases?.(),
+        fetchSalesReturns?.(),
+        fetchSalesVouchers?.(),
+      ]);
       setRefreshKey(prev => prev + 1); // triggers rerender
       // Reset form
       setFormData({
@@ -161,6 +171,7 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
         discountAmount: 0
       });
       setItems([{ productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
+      setProductSelectorStates([false]);
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating voucher:', error);
@@ -240,18 +251,27 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
                 <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
                   <div>
                     <Label>Product</Label>
-                    <Select  key={refreshKey} value={item.productId} onValueChange={(value) => handleItemChange(index, 'productId', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} (Stock: {getCalculatedStock(product.id)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ProductSelector
+                      key={`${refreshKey}-${index}`}
+                      products={products.map(p => ({
+                        ...p,
+                        displayStock: getCalculatedStock(p.id)
+                      }))}
+                      selectedProductId={item.productId}
+                      onProductSelect={(productId) => handleItemChange(index, 'productId', productId)}
+                      open={productSelectorStates[index] || false}
+                      onOpenChange={(open) => handleProductSelectorChange(index, open)}
+                      placeholder="Search & select product..."
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Available Stock</Label>
+                    <Input
+                      value={item.productId ? getCalculatedStock(item.productId) : 0}
+                      readOnly
+                      className="bg-gray-100 text-center font-semibold"
+                    />
                   </div>
                   
                   <div>
