@@ -13,7 +13,7 @@ const VirtualizedProductTable = React.lazy(() =>
   }))
 );
 
-// Progressive loading skeleton
+// Simplified loading skeleton
 const ProductTableSkeleton = () => (
   <div className="space-y-6">
     <Card>
@@ -29,13 +29,13 @@ const ProductTableSkeleton = () => (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5 animate-pulse" />
-          <Skeleton className="h-6 w-48" />
+          <Package className="h-5 w-5" />
+          Loading Products...
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 p-4 border-b">
               <Skeleton className="w-12 h-12 rounded-lg" />
               <div className="flex-1 space-y-2">
@@ -75,30 +75,14 @@ const ErrorFallback = ({ error, retry }: { error: Error; retry: () => void }) =>
 export const AsyncProductLoader = () => {
   const [shouldLoad, setShouldLoad] = useState(false);
 
-  // Progressive enhancement - start loading after component mounts
+  // Start loading immediately
   useEffect(() => {
-    const timer = setTimeout(() => setShouldLoad(true), 100);
-    return () => clearTimeout(timer);
+    setShouldLoad(true);
   }, []);
 
-  // Prefetch data with React Query for better caching
-  const { isLoading, error, refetch } = useQuery({
-    queryKey: ['products-prefetch'],
-    queryFn: async () => {
-      // This will trigger the useProducts hook to load data
-      return { loaded: true };
-    },
-    enabled: shouldLoad,
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-  });
-
-  if (!shouldLoad || isLoading) {
+  // Simple loading state without prefetch complexity
+  if (!shouldLoad) {
     return <ProductTableSkeleton />;
-  }
-
-  if (error) {
-    return <ErrorFallback error={error as Error} retry={() => refetch()} />;
   }
 
   return (

@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useLocalStorage } from './useLocalStorage';
 
 export interface Product {
   id: string;
@@ -23,12 +22,9 @@ export interface Product {
   createdAt: string;
 }
 
-const CACHE_KEY = 'products_async';
-const CACHE_EXPIRY_MINUTES = 10;
-
-// Async product fetcher with better error handling
+// Simple async product fetcher without caching
 const fetchProducts = async (): Promise<Product[]> => {
-  console.log('Fetching products asynchronously...');
+  console.log('Fetching products...');
   
   const { data, error } = await supabase
     .from('products')
@@ -59,15 +55,14 @@ const fetchProducts = async (): Promise<Product[]> => {
     createdAt: product.created_at
   }));
 
-  console.log(`Loaded ${mappedProducts.length} products asynchronously`);
+  console.log(`Loaded ${mappedProducts.length} products`);
   return mappedProducts;
 };
 
 export const useProductsAsync = () => {
   const queryClient = useQueryClient();
-  const { setItem, getItem, removeItem, isCacheValid } = useLocalStorage();
 
-  // Main products query with advanced caching
+  // Main products query without localStorage caching
   const {
     data: products = [],
     isLoading,
@@ -76,24 +71,13 @@ export const useProductsAsync = () => {
   } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts,
-    staleTime: CACHE_EXPIRY_MINUTES * 60 * 1000,
-    gcTime: (CACHE_EXPIRY_MINUTES + 5) * 60 * 1000,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes in React Query only
+    gcTime: 5 * 60 * 1000, // Keep in memory for 5 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    retry: 2,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retry: 1,
+    retryDelay: 1000,
   });
-
-  // Cache products locally for offline access
-  useEffect(() => {
-    if (products.length > 0) {
-      try {
-        setItem(CACHE_KEY, products, CACHE_EXPIRY_MINUTES);
-      } catch (error) {
-        console.warn('Failed to cache products locally:', error);
-      }
-    }
-  }, [products, setItem]);
 
   // Add product with optimistic updates
   const addProduct = useCallback(async (productData: Omit<Product, 'id' | 'status' | 'aiRecommendation' | 'createdAt'>) => {
@@ -142,15 +126,13 @@ export const useProductsAsync = () => {
         throw error;
       }
 
-      // Invalidate cache and refetch
-      removeItem(CACHE_KEY);
       queryClient.invalidateQueries({ queryKey: ['products'] });
       
     } catch (error) {
       console.error('Error adding product:', error);
       throw error;
     }
-  }, [queryClient, removeItem]);
+  }, [queryClient]);
 
   // Update product with optimistic updates
   const updateProduct = useCallback(async (id: string, updates: Partial<Product>) => {
@@ -190,13 +172,11 @@ export const useProductsAsync = () => {
         queryClient.invalidateQueries({ queryKey: ['products'] });
         throw error;
       }
-
-      removeItem(CACHE_KEY);
     } catch (error) {
       console.error('Error updating product:', error);
       throw error;
     }
-  }, [queryClient, removeItem]);
+  }, [queryClient]);
 
   // Delete product with optimistic updates
   const deleteProduct = useCallback(async (id: string) => {
@@ -218,22 +198,19 @@ export const useProductsAsync = () => {
         queryClient.invalidateQueries({ queryKey: ['products'] });
         throw error;
       }
-
-      removeItem(CACHE_KEY);
     } catch (error) {
       console.error('Error deleting product:', error);
       throw error;
     }
-  }, [queryClient, removeItem]);
+  }, [queryClient]);
 
   const getProduct = useCallback((id: string) => {
     return products.find(product => product.id === id);
   }, [products]);
 
   const refreshProducts = useCallback(() => {
-    removeItem(CACHE_KEY);
     return refetch();
-  }, [refetch, removeItem]);
+  }, [refetch]);
 
   return {
     products,
