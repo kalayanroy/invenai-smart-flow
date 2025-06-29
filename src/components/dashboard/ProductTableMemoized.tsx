@@ -97,7 +97,6 @@ export const ProductTable = React.memo(() => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [stockFilter, setStockFilter] = useState('all');
 
   // Pagination states
   const [displayedCount, setDisplayedCount] = useState(10);
@@ -106,11 +105,6 @@ export const ProductTable = React.memo(() => {
 
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
-
-  // Memoized categories to prevent recalculation
-  const categories = useMemo(() => {
-    return [...new Set(products.map(p => p.category))];
-  }, [products]);
 
   // Optimized filtered products with debounced search
   const filteredProducts = useMemo(() => {
@@ -134,20 +128,9 @@ export const ProductTable = React.memo(() => {
         return false;
       }
       
-      if (stockFilter !== 'all') {
-        const stock = product.stock;
-        switch (stockFilter) {
-          case 'high': return stock > 50;
-          case 'medium': return stock >= 11 && stock <= 50;
-          case 'low': return stock >= 1 && stock <= 10;
-          case 'empty': return stock === 0;
-          default: return true;
-        }
-      }
-      
       return true;
     });
-  }, [products, debouncedSearchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [products, debouncedSearchTerm, categoryFilter, statusFilter]);
 
   // Products to display (with pagination)
   const displayedProducts = useMemo(() => {
@@ -157,7 +140,7 @@ export const ProductTable = React.memo(() => {
   // Reset displayed count when filters change
   useEffect(() => {
     setDisplayedCount(10);
-  }, [debouncedSearchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [debouncedSearchTerm, categoryFilter, statusFilter]);
 
   // Memoized active filters count
   const activeFiltersCount = useMemo(() => {
@@ -165,9 +148,8 @@ export const ProductTable = React.memo(() => {
     if (searchTerm) count++;
     if (categoryFilter !== 'all') count++;
     if (statusFilter !== 'all') count++;
-    if (stockFilter !== 'all') count++;
     return count;
-  }, [searchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [searchTerm, categoryFilter, statusFilter]);
 
   // Memoized status color function
   const getStatusColor = useCallback((status: string) => {
@@ -234,7 +216,6 @@ export const ProductTable = React.memo(() => {
     setSearchTerm('');
     setCategoryFilter('all');
     setStatusFilter('all');
-    setStockFilter('all');
   }, []);
 
   const loadMoreProducts = useCallback(() => {
@@ -280,11 +261,9 @@ export const ProductTable = React.memo(() => {
             setCategoryFilter={setCategoryFilter}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
-            stockFilter={stockFilter}
-            setStockFilter={setStockFilter}
-            categories={categories}
             onClearFilters={clearFilters}
             activeFiltersCount={activeFiltersCount}
+            products={products}
           />
         </CardContent>
       </Card>

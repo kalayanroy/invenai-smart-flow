@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,9 +12,10 @@ import { ProductEditDialog } from '@/components/inventory/ProductEditDialog';
 import { ProductViewDialog } from '@/components/inventory/ProductViewDialog';
 import { ProductTableFilters } from './ProductTableFilters';
 import { LazyImage } from '@/components/optimized/LazyImage';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export const ProductTableFast = () => {
-  const { products, loading, updateProduct, deleteProduct } = useProducts();
+  const { products, loading, updateProduct, deleteProduct, addProduct } = useProducts();
   const { toast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -101,6 +103,15 @@ export const ProductTableFast = () => {
     }
   };
 
+  const handleProductCreated = (productData: any) => {
+    addProduct(productData);
+    setShowCreateForm(false);
+    toast({
+      title: "Product Created",
+      description: "The product has been created successfully.",
+    });
+  };
+
   const activeFiltersCount = [searchTerm, categoryFilter !== 'all', statusFilter !== 'all'].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -139,10 +150,20 @@ export const ProductTableFast = () => {
               <Package className="h-5 w-5" />
               Products ({filteredProducts.length} items)
             </CardTitle>
-            <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Product
-            </Button>
+            <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Product
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Product</DialogTitle>
+                </DialogHeader>
+                <CreateProductForm onProductCreated={handleProductCreated} />
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
@@ -227,12 +248,6 @@ export const ProductTableFast = () => {
           )}
         </CardContent>
       </Card>
-
-      {showCreateForm && (
-        <CreateProductForm 
-          onClose={() => setShowCreateForm(false)}
-        />
-      )}
 
       <ProductEditDialog
         open={showEditDialog}

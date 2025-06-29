@@ -24,12 +24,6 @@ export const ProductTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [stockFilter, setStockFilter] = useState('all');
-
-  // Get unique categories
-  const categories = useMemo(() => {
-    return [...new Set(products.map(p => p.category))];
-  }, [products]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -41,28 +35,9 @@ export const ProductTable = () => {
       const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
       
-      let matchesStock = true;
-      if (stockFilter !== 'all') {
-        const stock = product.stock;
-        switch (stockFilter) {
-          case 'high':
-            matchesStock = stock > 50;
-            break;
-          case 'medium':
-            matchesStock = stock >= 11 && stock <= 50;
-            break;
-          case 'low':
-            matchesStock = stock >= 1 && stock <= 10;
-            break;
-          case 'empty':
-            matchesStock = stock === 0;
-            break;
-        }
-      }
-      
-      return matchesSearch && matchesCategory && matchesStatus && matchesStock;
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [products, searchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [products, searchTerm, categoryFilter, statusFilter]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -70,15 +45,13 @@ export const ProductTable = () => {
     if (searchTerm) count++;
     if (categoryFilter !== 'all') count++;
     if (statusFilter !== 'all') count++;
-    if (stockFilter !== 'all') count++;
     return count;
-  }, [searchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [searchTerm, categoryFilter, statusFilter]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setCategoryFilter('all');
     setStatusFilter('all');
-    setStockFilter('all');
   };
 
   const getStatusColor = (status: string) => {
@@ -156,11 +129,9 @@ export const ProductTable = () => {
             setCategoryFilter={setCategoryFilter}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
-            stockFilter={stockFilter}
-            setStockFilter={setStockFilter}
-            categories={categories}
             onClearFilters={clearFilters}
             activeFiltersCount={activeFiltersCount}
+            products={products}
           />
         </CardContent>
       </Card>
