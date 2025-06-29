@@ -65,29 +65,33 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     const updatedItems = [...items];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
-    if (field === 'productId') {
-      // Find product from all available products (including those added via search)
-      const product = products.find(p => p.id === value);
-      if (product) {
-        console.log('Product found for calculation:', product);
-        updatedItems[index].productName = product.name;
-        // Clean the price string and convert to number
-        const priceString = product.purchasePrice.replace(/[^\d.-]/g, '');
-        const unitPrice = parseFloat(priceString) || 0;
-        updatedItems[index].unitPrice = unitPrice;
-        console.log('Unit price set to:', unitPrice);
-      } else {
-        console.log('Product not found in products array:', value);
-      }
-    }
-    
     // Recalculate total amount whenever quantity or unit price changes
-    if (field === 'quantity' || field === 'unitPrice' || field === 'productId') {
+    if (field === 'quantity' || field === 'unitPrice') {
       const totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
       updatedItems[index].totalAmount = totalAmount;
       console.log('Total amount calculated:', totalAmount, 'for item:', index);
     }
     
+    setItems(updatedItems);
+  };
+
+  // Handle product selection with proper data from ProductSelector
+  const handleProductSelect = (index: number, productId: string, productData: any) => {
+    console.log('Product selected in dialog:', { productId, productData });
+    
+    const updatedItems = [...items];
+    updatedItems[index] = {
+      ...updatedItems[index],
+      productId: productId,
+      productName: productData.name,
+      unitPrice: productData.unitPrice
+    };
+    
+    // Recalculate total amount
+    const totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
+    updatedItems[index].totalAmount = totalAmount;
+    
+    console.log('Updated item:', updatedItems[index]);
     setItems(updatedItems);
   };
 
@@ -215,9 +219,8 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
                       <ProductSelector
                         products={products}
                         selectedProductId={item.productId}
-                        onProductSelect={(productId) => {
-                          console.log('Product selected in dialog:', productId);
-                          updateItem(index, 'productId', productId);
+                        onProductSelect={(productId, productData) => {
+                          handleProductSelect(index, productId, productData);
                         }}
                         open={openProductSelectors[index]}
                         onOpenChange={(open) => setProductSelectorOpen(index, open)}

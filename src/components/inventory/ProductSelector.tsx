@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface ProductSelectorProps {
   products: Product[];
   selectedProductId: string;
-  onProductSelect: (productId: string) => void;
+  onProductSelect: (productId: string, productData: any) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   placeholder?: string;
@@ -166,15 +166,32 @@ export const ProductSelector = ({
                          searchResults.find(p => p.id === productId);
     
     if (selectedProd) {
+      console.log('Found selected product:', selectedProd);
+      
       // Add the selected product to allProducts if it's not already there
       if (!allProducts.find(p => p.id === productId)) {
         setAllProducts(prev => [...prev, selectedProd]);
       }
       
-      onProductSelect(productId);
+      // Clean the price string and convert to number
+      const priceString = selectedProd.purchasePrice.replace(/[^\d.-]/g, '');
+      const unitPrice = parseFloat(priceString) || 0;
+      
+      // Pass complete product data to parent
+      const productData = {
+        name: selectedProd.name,
+        unitPrice: unitPrice,
+        sku: selectedProd.sku,
+        ...selectedProd
+      };
+      
+      console.log('Passing product data to parent:', productData);
+      onProductSelect(productId, productData);
       onOpenChange(false);
       setSearchQuery('');
       setSearchResults([]);
+    } else {
+      console.error('Product not found:', productId);
     }
   }, [allProducts, searchResults, onProductSelect, onOpenChange]);
 
