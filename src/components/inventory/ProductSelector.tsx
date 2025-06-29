@@ -35,15 +35,14 @@ export const ProductSelector = ({
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const listRef = useRef<HTMLDivElement>(null);
 
-  loadMoreProducts();
+  // Handle scroll for lazy loading
   const handleScroll = useCallback(() => {
-    const listElement = listRef.current;
-    if (!listElement || !hasMore || isLoading) return;
+    if (!listRef.current || !hasMore || isLoading) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = listElement;
-    const scrollThreshold = 50; // Load more when 50px from bottom
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+    const threshold = 100; // pixels from bottom
 
-    if (scrollTop + clientHeight >= scrollHeight - scrollThreshold) {
+    if (scrollTop + clientHeight >= scrollHeight - threshold) {
       console.log('Scroll threshold reached, loading more products...');
       loadMoreProducts();
     }
@@ -56,12 +55,25 @@ export const ProductSelector = ({
     const listElement = listRef.current;
     if (!listElement) return;
 
-    listElement.addEventListener('scroll', handleScroll, { passive: true });
+    const throttledScroll = throttle(handleScroll, 200);
+    listElement.addEventListener('scroll', throttledScroll, { passive: true });
     
     return () => {
-      listElement.removeEventListener('scroll', handleScroll);
+      listElement.removeEventListener('scroll', throttledScroll);
     };
   }, [open, handleScroll]);
+
+  // Throttle function to limit scroll event frequency
+  function throttle(func: Function, limit: number) {
+    let inThrottle: boolean;
+    return function(this: any, ...args: any[]) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    };
+  }
 
   const handleLoadMoreClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -114,16 +126,16 @@ export const ProductSelector = ({
               ))}
               
               {/* Loading indicator */}
-              {isLoading && products.length > 0 && (
-                <div className="p-2 text-center text-sm text-gray-500">
-                  <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
-                  Loading more products...
+              {isLoading && (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm text-gray-500">Loading more products...</span>
                 </div>
               )}
               
               {/* Load More button */}
               {hasMore && !isLoading && products.length > 0 && (
-                <div className="p-2 border-t bg-gray-50">
+                <div className="p-2 border-t">
                   <Button
                     onClick={handleLoadMoreClick}
                     className="w-full h-8 text-xs"
