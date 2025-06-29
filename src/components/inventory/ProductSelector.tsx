@@ -31,6 +31,7 @@ export const ProductSelector = ({
   loadMoreProducts: () => void;
   hasMore: boolean;
 }) => {
+  console.log("hasMore:", hasMore); // 👈 ADD THIS HERE
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -40,8 +41,11 @@ export const ProductSelector = ({
     if (!el) return;
 
     const handleScroll = () => {
+       console.log("scrolling..."); // 👈 To confirm scroll triggers
+
       const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
       if (nearBottom && hasMore) {
+        console.log("Reached bottom, loading more...");
         loadMoreProducts();
       }
     };
@@ -93,7 +97,7 @@ export const ProductSelector = ({
                   </div>
                 </CommandItem>
               ))}
-              {true && (
+              {hasMore && (
                 <div className="text-center text-sm p-2 text-muted-foreground">Loading more...</div>
               )}
             </CommandGroup>
