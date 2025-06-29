@@ -96,7 +96,7 @@ export const ProductSelector = ({
                 </CommandItem>
               ))}
             </CommandGroup>
-            {hasMore && (
+            {true && (
               <div className="p-2">
                 <Button
                   onClick={loadMoreProducts} // বাটনে ক্লিক করলে loadMoreProducts কল হবে
