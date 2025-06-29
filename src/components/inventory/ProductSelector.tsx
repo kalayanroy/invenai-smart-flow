@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React,{ useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,24 +24,34 @@ export const ProductSelector = ({
   open,
   onOpenChange,
   placeholder = "Select product...",
-  className
-}: ProductSelectorProps) => {
+  className,
+  loadMoreProducts,
+  hasMore
+}: ProductSelectorProps & {
+  loadMoreProducts: () => void;
+  hasMore: boolean;
+}) => {
   const selectedProduct = products.find(p => p.id === selectedProductId);
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
+      // near bottom
+      loadMoreProducts();
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", className)}
-        >
+        <Button variant="outline" role="combobox" aria-expanded={open} className={cn("w-full justify-between", className)}>
           {selectedProduct ? selectedProduct.name : placeholder}
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start" ref={listRef} onScroll={handleScroll}>
         <Command>
           <CommandInput placeholder="Search products..." />
           <CommandList>
@@ -70,6 +80,9 @@ export const ProductSelector = ({
                   </div>
                 </CommandItem>
               ))}
+              {hasMore && (
+                <div className="text-center text-sm p-2 text-muted-foreground">Loading more...</div>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
