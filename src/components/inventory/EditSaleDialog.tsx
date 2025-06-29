@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,7 @@ interface EditSaleDialogProps {
 }
 
 export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: EditSaleDialogProps) => {
-  const { products } = useProducts();
+  const { products, loadMoreProducts, hasMore } = useProducts();
   const { sales } = useSales();
   const { purchases } = usePurchases();
   const { salesReturns } = useSalesReturns();
@@ -129,6 +128,8 @@ export const EditSaleDialog = ({ open, onOpenChange, sale, onSaleUpdated }: Edit
                 onProductSelect={handleProductSelect}
                 open={productSelectorOpen}
                 onOpenChange={setProductSelectorOpen}
+                loadMoreProducts={loadMoreProducts}
+                hasMore={hasMore}
               />
               {selectedProduct && (
                 <div className="text-sm text-gray-600">
