@@ -23,7 +23,7 @@ export interface Product {
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
-
+const PAGE_SIZE = 20;
   // Load products from Supabase on mount
   useEffect(() => {
     fetchProducts();
@@ -31,11 +31,15 @@ export const useProducts = () => {
 
   const fetchProducts = async () => {
     try {
+       const from = 0 * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+      
       console.log('Fetching products from Supabase...');
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (error) {
         console.error('Error fetching products:', error);
