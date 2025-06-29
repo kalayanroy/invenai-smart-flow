@@ -37,73 +37,55 @@ export const ProductSelector = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
    useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
+  const el = scrollRef.current;
+  if (!el) return;
 
-    const handleScroll = () => {
-       console.log("scrolling..."); // 👈 To confirm scroll triggers
+  const handleScroll = () => {
+    console.log("scrolling...");
 
-      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
-      if (nearBottom && hasMore) {
-        console.log("Reached bottom, loading more...");
-        loadMoreProducts();
-      }
-    };
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
+    if (nearBottom && hasMore) {
+      console.log("Reached bottom, loading more...");
+      loadMoreProducts();
+    }
+  };
 
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [hasMore, loadMoreProducts]);
+  el.addEventListener("scroll", handleScroll);
+  return () => el.removeEventListener("scroll", handleScroll);
+}, [hasMore, loadMoreProducts]);
+
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", className)}
-        >
-          {selectedProduct ? selectedProduct.name : placeholder}
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+    <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start">
+  <Command>
+    <CommandInput placeholder="Search products..." />
+    <CommandList
+      ref={scrollRef}
+      className="max-h-60 overflow-y-auto"
+    >
+      <CommandEmpty>No product found.</CommandEmpty>
+      <CommandGroup>
+        {products.map((product) => (
+          <CommandItem
+            key={product.id}
+            value={product.name}
+            onSelect={() => {
+              onProductSelect(product.id);
+              onOpenChange(false);
+            }}
+          >
+            {/* ... */}
+          </CommandItem>
+        ))}
+        {hasMore && (
+          <div className="text-center text-sm p-2 text-muted-foreground">
+            Loading more...
+          </div>
+        )}
+      </CommandGroup>
+    </CommandList>
+  </Command>
+</PopoverContent>
 
-      <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start" ref={scrollRef}>
-        <Command>
-          <CommandInput placeholder="Search products..." />
-          <CommandList>
-            <CommandEmpty>No product found.</CommandEmpty>
-            <CommandGroup>
-              {products.map((product) => (
-                <CommandItem
-                  key={product.id}
-                  value={product.name}
-                  onSelect={() => {
-                    onProductSelect(product.id);
-                    onOpenChange(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedProductId === product.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span>{product.name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      Purchase: {product.purchasePrice} | Sell: {product.sellPrice}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-              {hasMore && (
-                <div className="text-center text-sm p-2 text-muted-foreground">Loading more...</div>
-              )}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
   );
 };
