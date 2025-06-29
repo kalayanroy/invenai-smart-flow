@@ -35,28 +35,35 @@ export const ProductSelector = ({
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || !hasMore || isLoading) return;
+  const handleScroll = useCallback((e: Event) => {
+    const target = e.target as HTMLDivElement;
+    if (!target || !hasMore || isLoading) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const threshold = 10; // pixels from bottom
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - threshold;
     
     if (isNearBottom) {
-      console.log("Near bottom detected, loading more products...");
+      console.log("Scroll threshold reached, loading more products...");
       loadMoreProducts();
     }
   }, [hasMore, isLoading, loadMoreProducts]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
 
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
+    // Add scroll event listener
+    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+    
+    return () => {
+      scrollElement.removeEventListener("scroll", handleScroll);
+    };
   }, [handleScroll]);
 
-  const handleLoadMoreClick = useCallback(() => {
+  const handleLoadMoreClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!isLoading && hasMore) {
       console.log("Load More button clicked");
       loadMoreProducts();
@@ -102,26 +109,27 @@ export const ProductSelector = ({
                   {product.name}
                 </CommandItem>
               ))}
+              {hasMore && (
+                <div className="p-2 border-t bg-gray-50">
+                  <Button
+                    onClick={handleLoadMoreClick}
+                    className="w-full h-8 text-xs"
+                    variant="outline"
+                    disabled={isLoading}
+                    size="sm"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      `Load More (${products.length} loaded)`
+                    )}
+                  </Button>
+                </div>
+              )}
             </CommandGroup>
-            {(hasMore || isLoading) && (
-              <div className="p-2 border-t">
-                <Button
-                  onClick={handleLoadMoreClick}
-                  className="w-full"
-                  variant="ghost"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    "Load More..."
-                  )}
-                </Button>
-              </div>
-            )}
           </CommandList>
         </Command>
       </PopoverContent>
