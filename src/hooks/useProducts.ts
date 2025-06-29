@@ -23,7 +23,7 @@ export interface Product {
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
   // Load products from Supabase on mount
   useEffect(() => {
     fetchProducts();
