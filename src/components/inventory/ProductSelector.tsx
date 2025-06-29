@@ -42,10 +42,9 @@ export const ProductSelector = ({
 
   const handleScroll = () => {
     console.log("scrolling...");
-
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
     if (nearBottom && hasMore) {
-      console.log("Reached bottom, loading more...");
+      console.log("Reached bottom, loading more... Calling loadMoreProducts()"); // ADD THIS
       loadMoreProducts();
     }
   };
@@ -53,7 +52,6 @@ export const ProductSelector = ({
   el.addEventListener("scroll", handleScroll);
   return () => el.removeEventListener("scroll", handleScroll);
 }, [hasMore, loadMoreProducts]);
-
 
   return (
     <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start">
