@@ -35,6 +35,7 @@ const loadMoreProducts = async () => {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
+    console.log("Fetching next page...");
     const { data, error } = await supabase
       .from('products')
       .select('*')
