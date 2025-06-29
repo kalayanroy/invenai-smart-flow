@@ -11,6 +11,7 @@ import { useSales } from '@/hooks/useSales';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useSalesReturns } from '@/hooks/useSalesReturns';
 import { useSalesVouchers, SalesVoucherItem } from '@/hooks/useSalesVouchers';
+import { ProductSelector } from './ProductSelector';
 
 interface CreateSalesVoucherDialogProps {
   open: boolean;
@@ -19,12 +20,13 @@ interface CreateSalesVoucherDialogProps {
 }
 
 export const CreateSalesVoucherDialog = ({ open, onOpenChange, onVoucherCreated }: CreateSalesVoucherDialogProps) => {
-  const { products, fetchProducts } = useProducts();
-const { sales, fetchSales } = useSales();
-const { purchases, fetchPurchases } = usePurchases();
-const { salesReturns, fetchSalesReturns } = useSalesReturns();
-const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
+  const { products, fetchProducts, loadMoreProducts, hasMore, loading } = useProducts();
+  const { sales, fetchSales } = useSales();
+  const { purchases, fetchPurchases } = usePurchases();
+  const { salesReturns, fetchSalesReturns } = useSalesReturns();
+  const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [openProductSelectors, setOpenProductSelectors] = useState<{ [key: number]: boolean }>({});
   
   const [formData, setFormData] = useState({
     voucherNumber: `SV${Date.now()}`,
@@ -78,18 +80,38 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (field === 'productId') {
-      const product = products.find(p => p.id === value);
-      if (product) {
-        newItems[index].productName = product.name;
-        newItems[index].unitPrice = parseFloat(product.sellPrice.replace('৳', '').replace(',', ''));
-      }
+    // Recalculate total amount whenever quantity or unit price changes
+    if (field === 'quantity' || field === 'unitPrice') {
+      const totalAmount = newItems[index].quantity * newItems[index].unitPrice;
+      newItems[index].totalAmount = totalAmount;
+      console.log('Total amount calculated:', totalAmount, 'for item:', index);
     }
     
-    // Always recalculate total amount when quantity or unit price changes
-    newItems[index].totalAmount = newItems[index].quantity * newItems[index].unitPrice;
-    
     setItems(newItems);
+  };
+
+  // Handle product selection with proper data from ProductSelector
+  const handleProductSelect = (index: number, productId: string, productData: any) => {
+    console.log('Product selected in sales voucher dialog:', { productId, productData });
+    
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      productId: productId,
+      productName: productData.name,
+      unitPrice: productData.unitPrice
+    };
+    
+    // Recalculate total amount
+    const totalAmount = newItems[index].quantity * newItems[index].unitPrice;
+    newItems[index].totalAmount = totalAmount;
+    
+    console.log('Updated sales voucher item:', newItems[index]);
+    setItems(newItems);
+  };
+
+  const setProductSelectorOpen = (index: number, open: boolean) => {
+    setOpenProductSelectors(prev => ({ ...prev, [index]: open }));
   };
 
   const addItem = () => {
@@ -140,15 +162,13 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
       await onVoucherCreated(voucherData);
       
       // Automatically refresh products to update stock calculations
-      //await fetchProducts();
-       // ✅ Add missing fetches here
-  await Promise.all([
-    fetchProducts(),
-    fetchSales?.(),
-    fetchPurchases?.(),
-    fetchSalesReturns?.(),
-    fetchSalesVouchers?.(),
-  ]);
+      await Promise.all([
+        fetchProducts(),
+        fetchSales?.(),
+        fetchPurchases?.(),
+        fetchSalesReturns?.(),
+        fetchSalesVouchers?.(),
+      ]);
       setRefreshKey(prev => prev + 1); // triggers rerender
       // Reset form
       setFormData({
@@ -240,18 +260,20 @@ const { salesVouchers, fetchSalesVouchers } = useSalesVouchers();
                 <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
                   <div>
                     <Label>Product</Label>
-                    <Select  key={refreshKey} value={item.productId} onValueChange={(value) => handleItemChange(index, 'productId', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} (Stock: {getCalculatedStock(product.id)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ProductSelector
+                      products={products}
+                      selectedProductId={item.productId}
+                      onProductSelect={(productId, productData) => {
+                        handleProductSelect(index, productId, productData);
+                      }}
+                      open={openProductSelectors[index]}
+                      onOpenChange={(open) => setProductSelectorOpen(index, open)}
+                      placeholder="Select product..."
+                      className="w-full"
+                      loadMoreProducts={loadMoreProducts}
+                      hasMore={hasMore}
+                      isLoading={loading}
+                    />
                   </div>
                   
                   <div>
