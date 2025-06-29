@@ -6,6 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Filter, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
+interface Product {
+  id: string;
+  category: string;
+}
+
 interface ProductTableFiltersProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
@@ -13,11 +18,9 @@ interface ProductTableFiltersProps {
   setCategoryFilter: (category: string) => void;
   statusFilter: string;
   setStatusFilter: (status: string) => void;
-  stockFilter: string;
-  setStockFilter: (stock: string) => void;
-  categories: string[];
   onClearFilters: () => void;
   activeFiltersCount: number;
+  products: Product[];
 }
 
 export const ProductTableFilters = ({
@@ -27,12 +30,13 @@ export const ProductTableFilters = ({
   setCategoryFilter,
   statusFilter,
   setStatusFilter,
-  stockFilter,
-  setStockFilter,
-  categories,
   onClearFilters,
-  activeFiltersCount
+  activeFiltersCount,
+  products
 }: ProductTableFiltersProps) => {
+  // Extract unique categories from products
+  const categories = Array.from(new Set(products.map(product => product.category))).filter(Boolean);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -51,7 +55,7 @@ export const ProductTableFilters = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -88,20 +92,6 @@ export const ProductTableFilters = ({
             <SelectItem value="In Stock">In Stock</SelectItem>
             <SelectItem value="Low Stock">Low Stock</SelectItem>
             <SelectItem value="Out of Stock">Out of Stock</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Stock Level Filter */}
-        <Select value={stockFilter} onValueChange={setStockFilter}>
-          <SelectTrigger>
-            <SelectValue placeholder="Stock Level" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stock Levels</SelectItem>
-            <SelectItem value="high">High Stock (&gt;50)</SelectItem>
-            <SelectItem value="medium">Medium Stock (11-50)</SelectItem>
-            <SelectItem value="low">Low Stock (1-10)</SelectItem>
-            <SelectItem value="empty">Out of Stock (0)</SelectItem>
           </SelectContent>
         </Select>
       </div>

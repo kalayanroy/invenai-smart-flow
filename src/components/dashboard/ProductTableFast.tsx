@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +86,19 @@ export const ProductTableFast = () => {
       title: "Product Updated",
       description: "The product has been updated successfully.",
     });
+  };
+
+  const handleProductSave = async (id: string, updates: any) => {
+    try {
+      await updateProduct(id, updates);
+      handleProductUpdated();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update product. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const activeFiltersCount = [searchTerm, categoryFilter !== 'all', statusFilter !== 'all'].filter(Boolean).length;
@@ -214,16 +228,17 @@ export const ProductTableFast = () => {
         </CardContent>
       </Card>
 
-      <CreateProductForm 
-        open={showCreateForm} 
-        onOpenChange={setShowCreateForm}
-      />
+      {showCreateForm && (
+        <CreateProductForm 
+          onClose={() => setShowCreateForm(false)}
+        />
+      )}
 
       <ProductEditDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         product={selectedProduct}
-        onProductUpdated={handleProductUpdated}
+        onSave={handleProductSave}
       />
 
       <ProductViewDialog
