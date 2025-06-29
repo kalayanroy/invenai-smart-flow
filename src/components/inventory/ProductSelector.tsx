@@ -1,79 +1,64 @@
+import { useLazyProducts } from '@/hooks/useLazyProducts';
+import { ProductSelector } from '@/components/ProductSelector'; // your selector
+import { useState } from 'react';
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Product } from '@/hooks/useProducts';
+const ProductList = () => {
+  const {
+    products,
+    fetchProducts,
+    hasMore,
+    loading
+  } = useLazyProducts();
 
-interface ProductSelectorProps {
-  products: Product[];
-  selectedProductId: string;
-  onProductSelect: (productId: string) => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  placeholder?: string;
-  className?: string;
-}
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
 
-export const ProductSelector = ({
-  products,
-  selectedProductId,
-  onProductSelect,
-  open,
-  onOpenChange,
-  placeholder = "Select product...",
-  className
-}: ProductSelectorProps) => {
-  const selectedProduct = products.find(p => p.id === selectedProductId);
+  const scrollToProduct = async (productId: string) => {
+    let found = false;
+    let page = 0;
+
+    while (!found && hasMore) {
+      const { data } = await fetchProducts(page);
+      if (data.find(p => p.id === productId)) {
+        found = true;
+      }
+      page++;
+    }
+
+    setTimeout(() => {
+      const el = document.getElementById(`product-${productId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
+  const handleProductSelect = (productId: string) => {
+    setSelectedProductId(productId);
+    scrollToProduct(productId); // ← triggers auto-scroll in main list
+  };
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", className)}
-        >
-          {selectedProduct ? selectedProduct.name : placeholder}
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search products..." />
-          <CommandList>
-            <CommandEmpty>No product found.</CommandEmpty>
-            <CommandGroup>
-              {products.map((product) => (
-                <CommandItem
-                  key={product.id}
-                  value={product.name}
-                  onSelect={() => {
-                    onProductSelect(product.id);
-                    onOpenChange(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedProductId === product.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span>{product.name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      Purchase: {product.purchasePrice} | Sell: {product.sellPrice}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <>
+      <ProductSelector
+        products={products}
+        selectedProductId={selectedProductId}
+        onProductSelect={handleProductSelect}
+        open={/* your state */}
+        onOpenChange={/* your setter */}
+      />
+
+      <div className="space-y-2 mt-4">
+        {products.map((product) => (
+          <div
+            key={product.id}
+            id={`product-${product.id}`} // for scrolling
+            className="p-2 border rounded"
+          >
+            <strong>{product.name}</strong> — {product.sku}
+          </div>
+        ))}
+
+        {loading && <p className="text-center">Loading more...</p>}
+        {!hasMore && <p className="text-center text-gray-400">No more products.</p>}
+      </div>
+    </>
   );
 };

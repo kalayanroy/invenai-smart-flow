@@ -20,21 +20,18 @@ export interface Product {
   image?: string;
   createdAt: string;
 }
-
+const PAGE_SIZE = 10;
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
-const PAGE_SIZE = 1;
-  // Load products from Supabase on mount
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (targetPage = page): Promise<{ data: Product[]; hasMore: boolean }> => {
     try {
-       const from = 0 * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-      
-      console.log('Fetching products from Supabase...');
+      const from = targetPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -43,12 +40,10 @@ const PAGE_SIZE = 1;
 
       if (error) {
         console.error('Error fetching products:', error);
-        return;
+        return { data: [], hasMore: false };
       }
 
-      console.log('Raw products data from Supabase:', data);
-
-      const mappedProducts = data.map(product => ({
+      const mappedProducts: Product[] = (data || []).map(product => ({
         id: product.id,
         name: product.name,
         sku: product.sku,
@@ -67,13 +62,22 @@ const PAGE_SIZE = 1;
         createdAt: product.created_at
       }));
 
-      console.log('Mapped products:', mappedProducts);
-      setProducts(mappedProducts);
+      if (targetPage === 0) {
+        setProducts(mappedProducts);
+      } else {
+        setProducts(prev => [...prev, ...mappedProducts]);
+      }
+
+      const more = mappedProducts.length === PAGE_SIZE;
+      if (more) setPage(targetPage + 1);
+      setHasMore(more);
+
+      return { data: mappedProducts, hasMore: more };
     } catch (error) {
       console.error('Error in fetchProducts:', error);
+      return { data: [], hasMore: false };
     }
   };
-
   const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'aiRecommendation' | 'createdAt'>) => {
     try {
       console.log('Adding product to Supabase:', productData);
@@ -226,6 +230,11 @@ const PAGE_SIZE = 1;
     deleteProduct,
     getProduct,
     clearAllProducts,
-    fetchProducts
+    fetchProducts,
+    hasMore,
+    loading,
+    setLoading,
+    page,
+    setPage
   };
 };
