@@ -66,18 +66,26 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
     if (field === 'productId') {
+      // Find product from all available products (including those added via search)
       const product = products.find(p => p.id === value);
       if (product) {
+        console.log('Product found for calculation:', product);
         updatedItems[index].productName = product.name;
         // Clean the price string and convert to number
         const priceString = product.purchasePrice.replace(/[^\d.-]/g, '');
-        updatedItems[index].unitPrice = parseFloat(priceString) || 0;
+        const unitPrice = parseFloat(priceString) || 0;
+        updatedItems[index].unitPrice = unitPrice;
+        console.log('Unit price set to:', unitPrice);
+      } else {
+        console.log('Product not found in products array:', value);
       }
     }
     
     // Recalculate total amount whenever quantity or unit price changes
     if (field === 'quantity' || field === 'unitPrice' || field === 'productId') {
-      updatedItems[index].totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
+      const totalAmount = updatedItems[index].quantity * updatedItems[index].unitPrice;
+      updatedItems[index].totalAmount = totalAmount;
+      console.log('Total amount calculated:', totalAmount, 'for item:', index);
     }
     
     setItems(updatedItems);
@@ -90,7 +98,9 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
   };
 
   const getTotalAmount = () => {
-    return items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+    const total = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+    console.log('Grand total calculated:', total);
+    return total;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -120,6 +130,7 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
       }))
     };
 
+    console.log('Submitting purchase order:', orderData);
     onPurchaseCreated(orderData);
 
     onOpenChange(false);
@@ -204,7 +215,10 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
                       <ProductSelector
                         products={products}
                         selectedProductId={item.productId}
-                        onProductSelect={(productId) => updateItem(index, 'productId', productId)}
+                        onProductSelect={(productId) => {
+                          console.log('Product selected in dialog:', productId);
+                          updateItem(index, 'productId', productId);
+                        }}
                         open={openProductSelectors[index]}
                         onOpenChange={(open) => setProductSelectorOpen(index, open)}
                         placeholder="Select product..."

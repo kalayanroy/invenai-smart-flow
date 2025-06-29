@@ -33,11 +33,22 @@ export const ProductSelector = ({
   hasMore,
   isLoading = false
 }: ProductSelectorProps) => {
-  const selectedProduct = products.find(p => p.id === selectedProductId);
   const listRef = useRef<HTMLDivElement>(null);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>(products);
+
+  // Update allProducts when products change
+  useEffect(() => {
+    setAllProducts(products);
+  }, [products]);
+
+  // Find selected product from all available products (loaded + search results)
+  const selectedProduct = React.useMemo(() => {
+    return allProducts.find(p => p.id === selectedProductId) || 
+           searchResults.find(p => p.id === selectedProductId);
+  }, [allProducts, searchResults, selectedProductId]);
 
   // Handle scroll for lazy loading
   const handleScroll = useCallback(() => {
@@ -149,27 +160,39 @@ export const ProductSelector = ({
   // Handle product selection
   const handleProductSelect = useCallback((productId: string, productName: string) => {
     console.log('Product selected:', { productId, productName });
-    onProductSelect(productId);
-    onOpenChange(false);
-    setSearchQuery('');
-    setSearchResults([]);
-  }, [onProductSelect, onOpenChange]);
+    
+    // Find the selected product from either loaded products or search results
+    const selectedProd = allProducts.find(p => p.id === productId) || 
+                         searchResults.find(p => p.id === productId);
+    
+    if (selectedProd) {
+      // Add the selected product to allProducts if it's not already there
+      if (!allProducts.find(p => p.id === productId)) {
+        setAllProducts(prev => [...prev, selectedProd]);
+      }
+      
+      onProductSelect(productId);
+      onOpenChange(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    }
+  }, [allProducts, searchResults, onProductSelect, onOpenChange]);
 
   // Combine loaded products with search results, removing duplicates
   const displayProducts = React.useMemo(() => {
     if (searchQuery && searchResults.length > 0) {
       // Show search results, but also include already loaded products that match
-      const loadedIds = new Set(products.map(p => p.id));
+      const loadedIds = new Set(allProducts.map(p => p.id));
       const uniqueSearchResults = searchResults.filter(p => !loadedIds.has(p.id));
-      const matchingLoaded = products.filter(p => 
+      const matchingLoaded = allProducts.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       return [...matchingLoaded, ...uniqueSearchResults];
     }
-    return products;
-  }, [products, searchResults, searchQuery]);
+    return allProducts;
+  }, [allProducts, searchResults, searchQuery]);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -192,7 +215,7 @@ export const ProductSelector = ({
           />
           <CommandList ref={listRef} className="max-h-60 overflow-y-auto">
             <CommandEmpty>
-              {isLoading && products.length === 0 ? "Loading products..." : 
+              {isLoading && allProducts.length === 0 ? "Loading products..." : 
                isSearching ? "Searching..." : 
                "No product found."}
             </CommandEmpty>
@@ -235,7 +258,7 @@ export const ProductSelector = ({
               )}
               
               {/* Load More button - only show when not searching */}
-              {!searchQuery && hasMore && !isLoading && products.length > 0 && (
+              {!searchQuery && hasMore && !isLoading && allProducts.length > 0 && (
                 <div className="p-2 border-t">
                   <Button
                     onClick={handleLoadMoreClick}
@@ -243,15 +266,15 @@ export const ProductSelector = ({
                     variant="outline"
                     size="sm"
                   >
-                    Load More ({products.length} loaded)
+                    Load More ({allProducts.length} loaded)
                   </Button>
                 </div>
               )}
               
               {/* No more products indicator - only show when not searching */}
-              {!searchQuery && !hasMore && products.length > 0 && (
+              {!searchQuery && !hasMore && allProducts.length > 0 && (
                 <div className="p-2 text-center text-xs text-gray-500 border-t">
-                  All products loaded ({products.length} total)
+                  All products loaded ({allProducts.length} total)
                 </div>
               )}
             </CommandGroup>
