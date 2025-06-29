@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Printer, Download, Package, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Search, Filter, Printer, Download, Package, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { usePurchases } from '@/hooks/usePurchases';
@@ -12,7 +13,7 @@ import { useSalesReturns } from '@/hooks/useSalesReturns';
 import { useSalesVouchers } from '@/hooks/useSalesVouchers';
 
 export const StockManagement = () => {
-  const { products } = useProducts();
+  const { products, loading, hasMore, loadMoreProducts } = useProducts();
   const { sales } = useSales();
   const { purchases } = usePurchases();
   const { salesReturns } = useSalesReturns();
@@ -20,6 +21,9 @@ export const StockManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [displayedProducts, setDisplayedProducts] = useState(20);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Calculate stock movements including opening stock, purchases, sales, returns, and voucher sales
   const getProductMovements = (productId: string) => {
@@ -52,8 +56,68 @@ export const StockManagement = () => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  // Get displayed products with lazy loading
+  const productsToShow = filteredProducts.slice(0, displayedProducts);
+
   // Get unique categories
   const categories = [...new Set(products.map(p => p.category))];
+
+  // Handle scroll for lazy loading
+  const handleScroll = useCallback(() => {
+    if (!tableRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = tableRef.current;
+    const threshold = 100;
+
+    if (scrollTop + clientHeight >= scrollHeight - threshold && 
+        displayedProducts < filteredProducts.length && 
+        !isLoadingMore) {
+      setIsLoadingMore(true);
+      
+      // Simulate loading delay for smooth UX
+      setTimeout(() => {
+        setDisplayedProducts(prev => Math.min(prev + 20, filteredProducts.length));
+        setIsLoadingMore(false);
+      }, 300);
+    }
+  }, [displayedProducts, filteredProducts.length, isLoadingMore]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const tableElement = tableRef.current;
+    if (!tableElement) return;
+
+    const throttledScroll = throttle(handleScroll, 200);
+    tableElement.addEventListener('scroll', throttledScroll, { passive: true });
+    
+    return () => {
+      tableElement.removeEventListener('scroll', throttledScroll);
+    };
+  }, [handleScroll]);
+
+  // Reset displayed products when filters change
+  useEffect(() => {
+    setDisplayedProducts(20);
+  }, [searchTerm, categoryFilter, statusFilter]);
+
+  // Throttle function to limit scroll event frequency
+  function throttle(func: Function, limit: number) {
+    let inThrottle: boolean;
+    return function(this: any, ...args: any[]) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    };
+  }
+
+  // Load more products from backend
+  const handleLoadMoreProducts = useCallback(async () => {
+    if (hasMore && !loading) {
+      await loadMoreProducts();
+    }
+  }, [hasMore, loading, loadMoreProducts]);
 
   // Print function
   const handlePrint = () => {
@@ -307,12 +371,40 @@ export const StockManagement = () => {
                 Clear Filters
               </Button>
             )}
+
+            {hasMore && !loading && (
+              <Button 
+                variant="outline" 
+                onClick={handleLoadMoreProducts}
+                className="flex items-center gap-2"
+              >
+                <Package className="h-4 w-4" />
+                Load More Products
+              </Button>
+            )}
+
+            {loading && (
+              <div className="flex items-center gap-2 text-gray-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading products...</span>
+              </div>
+            )}
+          </div>
+
+          {/* Results Summary */}
+          <div className="mb-4 text-sm text-gray-600">
+            Showing {productsToShow.length} of {filteredProducts.length} products
+            {displayedProducts < filteredProducts.length && (
+              <span className="ml-2 text-blue-600">
+                (Scroll down to load more)
+              </span>
+            )}
           </div>
 
           {/* Stock Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto" ref={tableRef}>
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 bg-white z-10">
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Category</th>
@@ -328,7 +420,7 @@ export const StockManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((product) => {
+                {productsToShow.map((product) => {
                   const movements = getProductMovements(product.id);
                   const calculatedStock = movements.openingStock + movements.totalPurchased + movements.totalReturned - movements.totalSold;
                   const regularSales = movements.totalSold - movements.voucherSales;
@@ -378,6 +470,21 @@ export const StockManagement = () => {
                 })}
               </tbody>
             </table>
+
+            {/* Loading indicator for lazy loading */}
+            {isLoadingMore && (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-gray-500">Loading more products...</span>
+              </div>
+            )}
+
+            {/* End of list indicator */}
+            {displayedProducts >= filteredProducts.length && filteredProducts.length > 0 && (
+              <div className="text-center py-4 text-sm text-gray-500">
+                End of list - {filteredProducts.length} products shown
+              </div>
+            )}
           </div>
           
           {filteredProducts.length === 0 && (
