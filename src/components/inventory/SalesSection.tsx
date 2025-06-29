@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import { SalesFilters } from './SalesFilters';
 import { SalesVoucherFilters } from './SalesVoucherFilters';
 
 export const SalesSection = () => {
-  const { sales, createSale, updateSale, deleteSale } = useSales();
+  const { sales, addSale, updateSale, deleteSale } = useSales();
   const { salesVouchers, createSalesVoucher, updateSalesVoucher, deleteSalesVoucher } = useSalesVouchers();
 
   // Sales state
@@ -154,7 +155,7 @@ export const SalesSection = () => {
   // Dialog handlers
   const handleCreateSale = async (saleData: any) => {
     try {
-      await createSale(saleData);
+      await addSale(saleData);
       setShowCreateSale(false);
     } catch (error) {
       console.error("Error creating sale:", error);
@@ -414,7 +415,7 @@ export const SalesSection = () => {
       <CreateSaleDialog
         open={showCreateSale}
         onOpenChange={setShowCreateSale}
-        onSaleCreated={createSale}
+        onSaleCreated={addSale}
       />
       
       <EditSaleDialog
