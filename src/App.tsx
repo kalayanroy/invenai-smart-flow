@@ -5,37 +5,24 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Suspense, lazy } from "react";
-
-// Lazy load components
-const Index = lazy(() => import("./pages/Index"));
-const Login = lazy(() => import("./pages/Login"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const Inventory = lazy(() => import("./pages/Inventory"));
-const Purchases = lazy(() => import("./pages/Purchases"));
-const Sales = lazy(() => import("./pages/Sales"));
-const Returns = lazy(() => import("./pages/Returns"));
-const Stock = lazy(() => import("./pages/Stock"));
-const Categories = lazy(() => import("./pages/Categories"));
-const Settings = lazy(() => import("./pages/Settings"));
-const POS = lazy(() => import("./pages/POS"));
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-
-const LoadingSpinner = () => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-      <p className="mt-4 text-gray-600">Loading...</p>
-    </div>
-  </div>
-);
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
   
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
@@ -47,58 +34,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/inventory" element={
-              <ProtectedRoute>
-                <Inventory />
-              </ProtectedRoute>
-            } />
-            <Route path="/purchases" element={
-              <ProtectedRoute>
-                <Purchases />
-              </ProtectedRoute>
-            } />
-            <Route path="/sales" element={
-              <ProtectedRoute>
-                <Sales />
-              </ProtectedRoute>
-            } />
-            <Route path="/returns" element={
-              <ProtectedRoute>
-                <Returns />
-              </ProtectedRoute>
-            } />
-            <Route path="/stock" element={
-              <ProtectedRoute>
-                <Stock />
-              </ProtectedRoute>
-            } />
-            <Route path="/categories" element={
-              <ProtectedRoute>
-                <Categories />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/pos" element={
-              <ProtectedRoute>
-                <POS />
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

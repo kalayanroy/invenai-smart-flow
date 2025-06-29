@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useLocalStorage } from './useLocalStorage';
 
 export interface Product {
   id: string;
@@ -22,42 +21,13 @@ export interface Product {
   createdAt: string;
 }
 
-const CACHE_KEY = 'inventory_products';
-const CACHE_EXPIRY_MINUTES = 15; // Cache for 15 minutes
-const PRODUCTS_PER_CACHE_CHUNK = 50; // Store products in smaller chunks
-
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { setItem, getItem, removeItem, isCacheValid, getStorageInfo } = useLocalStorage();
 
-  // Load products from cache or Supabase on mount
+  // Load products from Supabase on mount
   useEffect(() => {
-    loadProducts();
+    fetchProducts();
   }, []);
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      
-      // Try to get from cache first
-      const cachedProducts = getItem<Product[]>(CACHE_KEY);
-      
-      if (cachedProducts && isCacheValid(CACHE_KEY)) {
-        console.log('Loading products from cache');
-        setProducts(cachedProducts);
-        setLoading(false);
-        return;
-      }
-
-      // If no cache or expired, fetch from database
-      console.log('Cache miss or expired, fetching from database');
-      await fetchProducts();
-    } catch (error) {
-      console.error('Error loading products:', error);
-      setLoading(false);
-    }
-  };
 
   const fetchProducts = async () => {
     try {
@@ -69,7 +39,6 @@ export const useProducts = () => {
 
       if (error) {
         console.error('Error fetching products:', error);
-        setLoading(false);
         return;
       }
 
@@ -96,29 +65,9 @@ export const useProducts = () => {
 
       console.log('Mapped products:', mappedProducts);
       setProducts(mappedProducts);
-      
-      // Cache the products with compression handling
-      console.log('Attempting to cache products...');
-      const storageInfo = getStorageInfo();
-      console.log(`Storage usage: ${storageInfo.usedMB}MB (${storageInfo.percentageUsed}%)`);
-      
-      // Only cache if we have a reasonable amount of products
-      if (mappedProducts.length <= 200) {
-        setItem(CACHE_KEY, mappedProducts, CACHE_EXPIRY_MINUTES);
-      } else {
-        console.warn('Too many products to cache effectively. Skipping cache for performance.');
-      }
-      
-      setLoading(false);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
-      setLoading(false);
     }
-  };
-
-  const invalidateCache = () => {
-    removeItem(CACHE_KEY);
-    console.log('Product cache invalidated');
   };
 
   const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'aiRecommendation' | 'createdAt'>) => {
@@ -166,7 +115,6 @@ export const useProducts = () => {
       }
 
       console.log('Product successfully added to Supabase:', data);
-      invalidateCache(); // Clear cache to force refresh
       await fetchProducts(); // Refresh the list
       return data;
     } catch (error) {
@@ -207,7 +155,6 @@ export const useProducts = () => {
       }
 
       console.log('Product updated successfully in Supabase');
-      invalidateCache(); // Clear cache to force refresh
       await fetchProducts(); // Refresh the list
     } catch (error) {
       console.error('Error in updateProduct:', error);
@@ -235,7 +182,6 @@ export const useProducts = () => {
       }
 
       console.log('Product deleted successfully from Supabase');
-      invalidateCache(); // Clear cache to force refresh
       await fetchProducts(); // Refresh the list
     } catch (error) {
       console.error('Error in deleteProduct:', error);
@@ -262,7 +208,6 @@ export const useProducts = () => {
       }
 
       console.log('All products cleared from Supabase');
-      invalidateCache(); // Clear cache
       setProducts([]);
     } catch (error) {
       console.error('Error in clearAllProducts:', error);
@@ -270,21 +215,13 @@ export const useProducts = () => {
     }
   };
 
-  const refreshProducts = async () => {
-    invalidateCache();
-    await fetchProducts();
-  };
-
   return {
     products,
-    loading,
     addProduct,
     updateProduct,
     deleteProduct,
     getProduct,
     clearAllProducts,
-    fetchProducts,
-    refreshProducts,
-    invalidateCache
+    fetchProducts
   };
 };

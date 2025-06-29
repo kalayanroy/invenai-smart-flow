@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,6 @@ import { usePurchases, Purchase, PurchaseOrder } from '@/hooks/usePurchases';
 import { CreatePurchaseDialog } from './CreatePurchaseDialog';
 import { ViewPurchaseDialog } from './ViewPurchaseDialog';
 import { EditPurchaseDialog } from './EditPurchaseDialog';
-import { PurchaseFilters } from './PurchaseFilters';
 import { generatePurchaseInvoicePDF } from '@/utils/pdfGenerator';
 import {generatePInvoicePDF} from '@/utils/pdfGenerator';
 
@@ -22,65 +20,6 @@ export const PurchaseSection = () => {
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState<PurchaseOrder | null>(null);
 
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [supplierFilter, setSupplierFilter] = useState('all');
-  const [dateRange, setDateRange] = useState('all');
-
-  // Get unique suppliers for filter
-  const suppliers = useMemo(() => {
-    const uniqueSuppliers = [...new Set(purchaseOrders.map(order => order.supplier))];
-    return uniqueSuppliers.sort();
-  }, [purchaseOrders]);
-
-  // Filter purchase orders
-  const filteredPurchaseOrders = useMemo(() => {
-    return purchaseOrders.filter(order => {
-      const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           order.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()));
-                           
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-      const matchesSupplier = supplierFilter === 'all' || order.supplier === supplierFilter;
-      
-      let matchesDate = true;
-      if (dateRange !== 'all') {
-        const orderDate = new Date(order.date);
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        
-        switch (dateRange) {
-          case 'today':
-            matchesDate = orderDate >= startOfDay;
-            break;
-          case 'week':
-            const weekAgo = new Date(startOfDay);
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            matchesDate = orderDate >= weekAgo;
-            break;
-          case 'month':
-            const monthAgo = new Date(startOfDay);
-            monthAgo.setMonth(monthAgo.getMonth() - 1);
-            matchesDate = orderDate >= monthAgo;
-            break;
-          case 'quarter':
-            const quarterAgo = new Date(startOfDay);
-            quarterAgo.setMonth(quarterAgo.getMonth() - 3);
-            matchesDate = orderDate >= quarterAgo;
-            break;
-          case 'year':
-            const yearAgo = new Date(startOfDay);
-            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-            matchesDate = orderDate >= yearAgo;
-            break;
-        }
-      }
-      
-      return matchesSearch && matchesStatus && matchesSupplier && matchesDate;
-    });
-  }, [purchaseOrders, searchTerm, statusFilter, supplierFilter, dateRange]);
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Received': return 'bg-green-100 text-green-800';
@@ -91,7 +30,7 @@ export const PurchaseSection = () => {
     }
   };
 
-  const totalPurchases = filteredPurchaseOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalPurchases = purchaseOrders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   const handlePurchaseCreated = (orderData: any) => {
     addPurchaseOrder(orderData);
@@ -161,20 +100,6 @@ export const PurchaseSection = () => {
     });
   };
 
-  const activeFiltersCount = [
-    searchTerm,
-    statusFilter !== 'all',
-    supplierFilter !== 'all',
-    dateRange !== 'all'
-  ].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setSupplierFilter('all');
-    setDateRange('all');
-  };
-
   return (
     <div className="space-y-6">
       {/* Purchase Overview */}
@@ -185,7 +110,7 @@ export const PurchaseSection = () => {
               <ShoppingCart className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-600">Purchase Orders</p>
-                <p className="text-2xl font-bold">{filteredPurchaseOrders.length}</p>
+                <p className="text-2xl font-bold">{purchaseOrders.length}</p>
               </div>
             </div>
           </CardContent>
@@ -210,7 +135,7 @@ export const PurchaseSection = () => {
               <div>
                 <p className="text-sm text-gray-600">Items Purchased</p>
                 <p className="text-2xl font-bold">
-                  {filteredPurchaseOrders.reduce((sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)}
+                  {purchaseOrders.reduce((sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)}
                 </p>
               </div>
             </div>
@@ -218,26 +143,11 @@ export const PurchaseSection = () => {
         </Card>
       </div>
 
-      {/* Purchase Filters */}
-      <PurchaseFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        supplierFilter={supplierFilter}
-        setSupplierFilter={setSupplierFilter}
-        dateRange={dateRange}
-        setDateRange={setDateRange}
-        suppliers={suppliers}
-        onClearFilters={clearFilters}
-        activeFiltersCount={activeFiltersCount}
-      />
-
       {/* Purchase Orders Table */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Purchase Orders ({filteredPurchaseOrders.length} orders)</CardTitle>
+            <CardTitle>Purchase Orders ({purchaseOrders.length} orders)</CardTitle>
             <Button 
               className="flex items-center gap-2"
               onClick={() => setShowCreatePurchase(true)}
@@ -263,7 +173,7 @@ export const PurchaseSection = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredPurchaseOrders.map((order) => (
+                {purchaseOrders.map((order) => (
                   <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-4 text-sm font-mono">{order.id}</td>
                     <td className="py-4 px-4 text-sm">{order.supplier}</td>
@@ -328,9 +238,9 @@ export const PurchaseSection = () => {
             </table>
           </div>
           
-          {filteredPurchaseOrders.length === 0 && (
+          {purchaseOrders.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              <p>No purchase orders found matching your criteria.</p>
+              <p>No purchase orders found. Create your first purchase order to get started.</p>
             </div>
           )}
         </CardContent>

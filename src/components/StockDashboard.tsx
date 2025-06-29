@@ -1,202 +1,167 @@
 
-import React, { Suspense, lazy } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState } from 'react';
+import { DashboardHeader } from './dashboard/DashboardHeader';
+import { MetricsOverview } from './dashboard/MetricsOverview';
+import { InventoryChart } from './dashboard/InventoryChart';
+import { ProductTable } from './dashboard/ProductTable';
+import { AIInsights } from './dashboard/AIInsights';
+import { AlertsPanel } from './dashboard/AlertsPanel';
+import { SalesSection } from './inventory/SalesSection';
+import { PurchaseSection } from './inventory/PurchaseSection';
+import { StockManagement } from './inventory/StockManagement';
+import { SalesReturnSection } from './inventory/SalesReturnSection';
+import { BackupRestore } from './inventory/BackupRestore';
+import { Reports } from '../pages/Reports';
+import { POSSystem } from './pos/POSSystem';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import {
+  User, LogOut, Menu, X,
+  BarChart3, Package, Boxes,
+  ShoppingCart, RotateCcw,
+  ShoppingBag, FileText, CreditCard,
+  Database
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-// Optimized lazy loading with better chunking strategy
-const MetricsOverview = lazy(() => 
-  import('@/components/dashboard/MetricsOverview')
-    .then(module => ({ default: module.MetricsOverview }))
-);
+export const StockDashboard = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState('overview');
 
-const InventoryChart = lazy(() => 
-  import('@/components/dashboard/InventoryChart')
-    .then(module => ({ default: module.InventoryChart }))
-);
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-// Use the new optimized product table
-const ProductTableOptimized = lazy(() => 
-  import('@/components/dashboard/ProductTableOptimized')
-    .then(module => ({ default: module.ProductTableOptimized }))
-);
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'stock-management', label: 'Stock Mgmt', icon: Boxes },
+    { id: 'pos', label: 'POS', icon: CreditCard },
+    { id: 'sales', label: 'Sales', icon: ShoppingCart },
+    { id: 'sales-returns', label: 'Returns', icon: RotateCcw },
+    { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
+    { id: 'backup-restore', label: 'Backup', icon: Database },
+    { id: 'reports', label: 'Reports', icon: FileText },
+  ];
 
-const AlertsPanel = lazy(() => 
-  import('@/components/dashboard/AlertsPanel')
-    .then(module => ({ default: module.AlertsPanel }))
-);
+  React.useEffect(() => {
+    console.log("Is mobile:", isMobile);
+  }, [isMobile]);
 
-const AIInsights = lazy(() => 
-  import('@/components/dashboard/AIInsights')
-    .then(module => ({ default: module.AIInsights }))
-);
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+  };
 
-// Lazy load other components only when needed
-const PurchaseSection = lazy(() => 
-  import('@/components/inventory/PurchaseSection')
-    .then(module => ({ default: module.PurchaseSection }))
-);
-
-const SalesSection = lazy(() => 
-  import('@/components/inventory/SalesSection')
-    .then(module => ({ default: module.SalesSection }))
-);
-
-const SalesReturnSection = lazy(() => 
-  import('@/components/inventory/SalesReturnSection')
-    .then(module => ({ default: module.SalesReturnSection }))
-);
-
-const StockManagement = lazy(() => 
-  import('@/components/inventory/StockManagement')
-    .then(module => ({ default: module.StockManagement }))
-);
-
-const CategoryManagement = lazy(() => 
-  import('@/components/inventory/CategoryManagement')
-    .then(module => ({ default: module.CategoryManagement }))
-);
-
-const UnitManagement = lazy(() => 
-  import('@/components/inventory/UnitManagement')
-    .then(module => ({ default: module.UnitManagement }))
-);
-
-const BackupRestore = lazy(() => 
-  import('@/components/inventory/BackupRestore')
-    .then(module => ({ default: module.BackupRestore }))
-);
-
-const POSSystem = lazy(() => 
-  import('@/components/pos/POSSystem')
-    .then(module => ({ default: module.POSSystem }))
-);
-
-// Optimized skeleton with minimal rendering
-const FastSkeleton = React.memo(() => (
-  <div className="space-y-3 animate-pulse">
-    <Skeleton className="h-8 w-48" />
-    <Skeleton className="h-24 w-full rounded-lg" />
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <Skeleton className="h-16 rounded-lg" />
-      <Skeleton className="h-16 rounded-lg" />
-      <Skeleton className="h-16 rounded-lg" />
-      <Skeleton className="h-16 rounded-lg" />
-    </div>
-  </div>
-));
-
-FastSkeleton.displayName = 'FastSkeleton';
-
-// Highly optimized tab trigger component
-const TabTriggerMemo = React.memo(({ value, children, className }: {
-  value: string;
-  children: React.ReactNode;
-  className?: string;
-}) => (
-  <TabsTrigger value={value} className={className}>
-    {children}
-  </TabsTrigger>
-));
-
-TabTriggerMemo.displayName = 'TabTriggerMemo';
-
-export const StockDashboard = React.memo(() => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <DashboardHeader />
-      
-      <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-9 gap-1 h-auto p-1">
-            <TabTriggerMemo value="dashboard" className="text-xs lg:text-sm px-2 py-1">Dashboard</TabTriggerMemo>
-            <TabTriggerMemo value="inventory" className="text-xs lg:text-sm px-2 py-1">Inventory</TabTriggerMemo>
-            <TabTriggerMemo value="purchases" className="text-xs lg:text-sm px-2 py-1">Purchases</TabTriggerMemo>
-            <TabTriggerMemo value="sales" className="text-xs lg:text-sm px-2 py-1">Sales</TabTriggerMemo>
-            <TabTriggerMemo value="returns" className="text-xs lg:text-sm px-2 py-1">Returns</TabTriggerMemo>
-            <TabTriggerMemo value="stock" className="text-xs lg:text-sm px-2 py-1">Stock</TabTriggerMemo>
-            <TabTriggerMemo value="categories" className="text-xs lg:text-sm px-2 py-1">Categories</TabTriggerMemo>
-            <TabTriggerMemo value="settings" className="text-xs lg:text-sm px-2 py-1">Settings</TabTriggerMemo>
-            <TabTriggerMemo value="pos" className="text-xs lg:text-sm px-2 py-1">POS</TabTriggerMemo>
-          </TabsList>
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className={`${isMobile ? 'px-4 py-3' : 'container mx-auto px-6 py-4'}`}>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                  {isMobile ? 'InvenAI' : 'Inventory Management System'}
+                </h1>
+                {!isMobile && <p className="text-sm text-gray-500">Smart Inventory Control</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                <User className="h-4 w-4" />
+                <span className="font-medium">{user?.username}</span>
+                {!isMobile && <span className="text-gray-500">({user?.role})</span>}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLogout} 
+                className="flex items-center gap-1"
+              >
+                <LogOut className="h-3 w-3" />
+                {!isMobile && 'Logout'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <TabsContent value="dashboard" className="space-y-4 mt-4">
-            <Suspense fallback={<FastSkeleton />}>
+      {/* Mobile Horizontal Navigation */}
+      {isMobile && (
+        <div className="flex overflow-x-auto bg-white px-2 py-3 space-x-4 shadow-sm border-b">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-100'
+                }`}
+                title={tab.label}
+              >
+                <Icon className="h-5 w-5" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Desktop Tabs */}
+      {!isMobile && (
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-sm mb-8 w-fit overflow-x-auto">
+            {tabs.map((tab) => {
+              const IconComponent = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 whitespace-nowrap flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  <IconComponent className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className={`${isMobile ? 'px-2 py-4' : 'container mx-auto px-6 py-8'}`}>
+        {activeTab === 'overview' ? (
+          <div className={`${isMobile ? 'space-y-4' : 'grid grid-cols-1 lg:grid-cols-4 gap-8'}`}>
+            <div className={`${isMobile ? '' : 'lg:col-span-3'} space-y-6`}>
               <MetricsOverview />
-            </Suspense>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <Suspense fallback={<FastSkeleton />}>
-                  <InventoryChart />
-                </Suspense>
-              </div>
-              <div className="space-y-4">
-                <Suspense fallback={<FastSkeleton />}>
-                  <AlertsPanel />
-                </Suspense>
-                <Suspense fallback={<FastSkeleton />}>
-                  <AIInsights />
-                </Suspense>
-              </div>
+              <InventoryChart />
             </div>
-          </TabsContent>
-
-          <TabsContent value="inventory" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <ProductTableOptimized />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="purchases" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <PurchaseSection />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="sales" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <SalesSection />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="returns" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <SalesReturnSection />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="stock" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <StockManagement />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="categories" className="mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Suspense fallback={<FastSkeleton />}>
-                <CategoryManagement />
-              </Suspense>
-              <Suspense fallback={<FastSkeleton />}>
-                <UnitManagement />
-              </Suspense>
+            <div className={`${isMobile ? '' : 'lg:col-span-1'}`}>
+              <AlertsPanel />
             </div>
-          </TabsContent>
-
-          <TabsContent value="settings" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <BackupRestore />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="pos" className="mt-4">
-            <Suspense fallback={<FastSkeleton />}>
-              <POSSystem />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
-      </main>
+          </div>
+        ) : (
+          <div className="w-full">
+            {activeTab === 'inventory' && <ProductTable />}
+            {activeTab === 'stock-management' && <StockManagement />}
+            {activeTab === 'pos' && <POSSystem />}
+            {activeTab === 'sales' && <SalesSection />}
+            {activeTab === 'sales-returns' && <SalesReturnSection />}
+            {activeTab === 'purchases' && <PurchaseSection />}
+            {activeTab === 'backup-restore' && <BackupRestore />}
+            {activeTab === 'reports' && <Reports />}
+          </div>
+        )}
+      </div>
     </div>
   );
-});
-
-StockDashboard.displayName = 'StockDashboard';
+};

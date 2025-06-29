@@ -5,14 +5,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface Product {
-  id: string;
-  name: string;
-  purchasePrice: string;
-  sellPrice: string;
-  displayStock?: number;
-}
+import { Product } from '@/hooks/useProducts';
 
 interface ProductSelectorProps {
   products: Product[];
@@ -50,14 +43,14 @@ export const ProductSelector = ({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search products..." className="h-9" />
+          <CommandInput placeholder="Search products..." />
           <CommandList>
             <CommandEmpty>No product found.</CommandEmpty>
             <CommandGroup>
               {products.map((product) => (
                 <CommandItem
                   key={product.id}
-                  value={`${product.name} ${product.id}`}
+                  value={product.name}
                   onSelect={() => {
                     onProductSelect(product.id);
                     onOpenChange(false);
@@ -69,14 +62,11 @@ export const ProductSelector = ({
                       selectedProductId === product.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex flex-col flex-1">
-                    <span className="font-medium">{product.name}</span>
-                    <div className="text-sm text-muted-foreground flex justify-between">
-                      <span>Purchase: {product.purchasePrice} | Sell: {product.sellPrice}</span>
-                      {product.displayStock !== undefined && (
-                        <span className="font-medium">Stock: {product.displayStock}</span>
-                      )}
-                    </div>
+                  <div className="flex flex-col">
+                    <span>{product.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Purchase: {product.purchasePrice} | Sell: {product.sellPrice}
+                    </span>
                   </div>
                 </CommandItem>
               ))}

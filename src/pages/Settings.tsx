@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UnitManagement } from '@/components/inventory/UnitManagement';
 import { CategoryManagement } from '@/components/inventory/CategoryManagement';
 
-const Settings = () => {
+export const Settings = () => {
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
@@ -26,5 +26,3 @@ const Settings = () => {
     </div>
   );
 };
-
-export default Settings;

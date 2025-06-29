@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useLocalStorage } from './useLocalStorage';
 
 export interface Unit {
   id: string;
@@ -10,43 +9,10 @@ export interface Unit {
   updated_at: string;
 }
 
-const CACHE_KEY = 'inventory_units';
-const CACHE_EXPIRY_MINUTES = 30; // Cache for 30 minutes
-
 export const useUnits = () => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { setItem, getItem, removeItem, isCacheValid } = useLocalStorage();
-
-  useEffect(() => {
-    loadUnits();
-  }, []);
-
-  const loadUnits = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Try to get from cache first
-      const cachedUnits = getItem<Unit[]>(CACHE_KEY);
-      
-      if (cachedUnits && isCacheValid(CACHE_KEY)) {
-        console.log('Loading units from cache');
-        setUnits(cachedUnits);
-        setLoading(false);
-        return;
-      }
-
-      // If no cache or expired, fetch from database
-      console.log('Cache miss or expired, fetching units from database');
-      await fetchUnits();
-    } catch (error) {
-      console.error('Error loading units:', error);
-      setError('Failed to load units');
-      setLoading(false);
-    }
-  };
 
   const fetchUnits = async () => {
     try {
@@ -62,26 +28,17 @@ export const useUnits = () => {
       if (error) {
         console.error('Error fetching units:', error);
         setError(error.message);
-        setLoading(false);
         return;
       }
       
       console.log('Units fetched successfully:', data);
       setUnits(data || []);
-      
-      // Cache the units
-      setItem(CACHE_KEY, data || [], CACHE_EXPIRY_MINUTES);
-      setLoading(false);
     } catch (error) {
       console.error('Error in fetchUnits:', error);
       setError('Failed to fetch units');
+    } finally {
       setLoading(false);
     }
-  };
-
-  const invalidateCache = () => {
-    removeItem(CACHE_KEY);
-    console.log('Units cache invalidated');
   };
 
   const addUnit = async (name: string) => {
@@ -99,8 +56,7 @@ export const useUnits = () => {
       }
 
       console.log('Unit added successfully:', data);
-      invalidateCache(); // Clear cache to force refresh
-      await fetchUnits(); // Refresh from database
+      await fetchUnits(); // Refresh the list
       return data;
     } catch (error) {
       console.error('Error in addUnit:', error);
@@ -122,7 +78,6 @@ export const useUnits = () => {
         throw error;
       }
 
-      invalidateCache(); // Clear cache to force refresh
       await fetchUnits();
       return data;
     } catch (error) {
@@ -143,7 +98,6 @@ export const useUnits = () => {
         throw error;
       }
 
-      invalidateCache(); // Clear cache to force refresh
       await fetchUnits();
     } catch (error) {
       console.error('Error in deleteUnit:', error);
@@ -151,10 +105,9 @@ export const useUnits = () => {
     }
   };
 
-  const refreshUnits = async () => {
-    invalidateCache();
-    await fetchUnits();
-  };
+  useEffect(() => {
+    fetchUnits();
+  }, []);
 
   return {
     units,
@@ -163,8 +116,6 @@ export const useUnits = () => {
     addUnit,
     editUnit,
     deleteUnit,
-    fetchUnits,
-    refreshUnits,
-    invalidateCache
+    fetchUnits
   };
 };
