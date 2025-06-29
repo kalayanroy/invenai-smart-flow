@@ -1,9 +1,9 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Product } from '@/hooks/useProducts';
 
@@ -17,6 +17,7 @@ interface ProductSelectorProps {
   className?: string;
   loadMoreProducts: () => void;
   hasMore: boolean;
+  isLoading?: boolean;
 }
 
 export const ProductSelector = ({
@@ -28,26 +29,39 @@ export const ProductSelector = ({
   placeholder = "Select product...",
   className,
   loadMoreProducts,
-  hasMore
+  hasMore,
+  isLoading = false
 }: ProductSelectorProps) => {
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || !hasMore || isLoading) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    
+    if (isNearBottom) {
+      console.log("Near bottom detected, loading more products...");
+      loadMoreProducts();
+    }
+  }, [hasMore, isLoading, loadMoreProducts]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    const handleScroll = () => {
-      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
-      if (nearBottom && hasMore) {
-        console.log("Reached bottom, loading more products...");
-        loadMoreProducts();
-      }
-    };
-
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [hasMore, loadMoreProducts]);
+  }, [handleScroll]);
+
+  const handleLoadMoreClick = useCallback(() => {
+    if (!isLoading && hasMore) {
+      console.log("Load More button clicked");
+      loadMoreProducts();
+    }
+  }, [isLoading, hasMore, loadMoreProducts]);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -66,7 +80,9 @@ export const ProductSelector = ({
         <Command>
           <CommandInput placeholder="Search products..." />
           <CommandList ref={scrollRef} className="max-h-60 overflow-y-auto">
-            <CommandEmpty>No product found.</CommandEmpty>
+            <CommandEmpty>
+              {isLoading ? "Loading products..." : "No product found."}
+            </CommandEmpty>
             <CommandGroup>
               {products.map((product) => (
                 <CommandItem
@@ -87,14 +103,22 @@ export const ProductSelector = ({
                 </CommandItem>
               ))}
             </CommandGroup>
-            {hasMore && (
-              <div className="p-2">
+            {(hasMore || isLoading) && (
+              <div className="p-2 border-t">
                 <Button
-                  onClick={loadMoreProducts}
+                  onClick={handleLoadMoreClick}
                   className="w-full"
                   variant="ghost"
+                  disabled={isLoading}
                 >
-                  Load More...
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load More..."
+                  )}
                 </Button>
               </div>
             )}

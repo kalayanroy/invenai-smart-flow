@@ -31,68 +31,85 @@ export const useProducts = () => {
   const PAGE_SIZE = 50;
 
   useEffect(() => {
-    loadMoreProducts();
+    fetchProducts();
   }, []);
 
   const loadMoreProducts = async () => {
-    if (!hasMore || isLoading) return;
+    if (!hasMore || isLoading) {
+      console.log('Cannot load more - hasMore:', hasMore, 'isLoading:', isLoading);
+      return;
+    }
     
     setIsLoading(true);
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    console.log(`Fetching products from ${from} to ${to}...`);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    console.log(`Loading more products from ${from} to ${to}...`);
+    
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
-    if (error) {
-      console.error('Error fetching products:', error);
+      if (error) {
+        console.error('Error loading more products:', error);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log(`Loaded ${data?.length || 0} more products`);
+
+      if (!data || data.length === 0) {
+        console.log('No more products to load');
+        setHasMore(false);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.length < PAGE_SIZE) {
+        console.log('Reached end of products');
+        setHasMore(false);
+      }
+
+      const mapped = data.map(product => ({
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode || '',
+        category: product.category,
+        stock: product.stock,
+        reorderPoint: product.reorder_point,
+        price: product.price,
+        purchasePrice: product.purchase_price,
+        sellPrice: product.sell_price,
+        openingStock: product.opening_stock,
+        unit: product.unit,
+        status: product.status,
+        aiRecommendation: product.ai_recommendation || '',
+        image: product.image,
+        createdAt: product.created_at
+      }));
+
+      setProducts(prev => [...prev, ...mapped]);
+      setPage(prev => prev + 1);
+    } catch (error) {
+      console.error('Error in loadMoreProducts:', error);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    console.log(`Fetched ${data?.length || 0} products`);
-
-    if (!data || data.length < PAGE_SIZE) {
-      console.log('No more products to load');
-      setHasMore(false);
-    }
-
-    const mapped = data.map(product => ({
-      id: product.id,
-      name: product.name,
-      sku: product.sku,
-      barcode: product.barcode || '',
-      category: product.category,
-      stock: product.stock,
-      reorderPoint: product.reorder_point,
-      price: product.price,
-      purchasePrice: product.purchase_price,
-      sellPrice: product.sell_price,
-      openingStock: product.opening_stock,
-      unit: product.unit,
-      status: product.status,
-      aiRecommendation: product.ai_recommendation || '',
-      image: product.image,
-      createdAt: product.created_at
-    }));
-
-    setProducts(prev => [...prev, ...mapped]);
-    setPage(prev => prev + 1);
-    setIsLoading(false);
   };
 
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching products from Supabase...');
+      console.log('Fetching initial products from Supabase...');
       
-      // Reset pagination state
+      // Reset state
       setPage(0);
       setHasMore(true);
+      setProducts([]);
       
       const { data, error } = await supabase
         .from('products')
@@ -108,7 +125,13 @@ export const useProducts = () => {
 
       console.log('Raw products data from Supabase:', data);
 
-      if (!data || data.length < PAGE_SIZE) {
+      if (!data || data.length === 0) {
+        setHasMore(false);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.length < PAGE_SIZE) {
         setHasMore(false);
       }
 
@@ -134,9 +157,9 @@ export const useProducts = () => {
       console.log('Mapped products:', mappedProducts);
       setProducts(mappedProducts);
       setPage(1);
-      setIsLoading(false);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
+    } finally {
       setIsLoading(false);
     }
   };
