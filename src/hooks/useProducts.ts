@@ -1,3 +1,5 @@
+// useProducts.ts
+// এই ফাইলটি অপরিবর্তিত থাকবে
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,11 +28,12 @@ export const useProducts = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const PAGE_SIZE = 20;
-  // Load products from Supabase on mount
+
   useEffect(() => {
     loadMoreProducts();
   }, []);
-const loadMoreProducts = async () => {
+
+  const loadMoreProducts = async () => {
     if (!hasMore) return;
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -77,8 +80,8 @@ const loadMoreProducts = async () => {
   const fetchProducts = async () => {
     try {
        const from = 0 * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-      
+       const to = from + PAGE_SIZE - 1;
+
       console.log('Fetching products from Supabase...');
       const { data, error } = await supabase
         .from('products')
@@ -123,17 +126,15 @@ const loadMoreProducts = async () => {
     try {
       console.log('Adding product to Supabase:', productData);
 
-      // Clean up the image data - check if it's a valid base64 string or URL
       let cleanImage = undefined;
       if (productData.image && typeof productData.image === 'string' && productData.image.length > 0) {
-        // Only use the image if it's a valid data URL or HTTP URL
         if (productData.image.startsWith('data:') || productData.image.startsWith('http')) {
           cleanImage = productData.image;
         }
       }
 
       const newProduct = {
-        id: productData.sku, // Use SKU as ID
+        id: productData.sku,
         name: productData.name,
         sku: productData.sku,
         barcode: productData.barcode || null,
@@ -145,7 +146,7 @@ const loadMoreProducts = async () => {
         sell_price: productData.sellPrice,
         opening_stock: productData.openingStock || 0,
         unit: productData.unit,
-        status: 'In Stock',//(productData.openingStock || 0) > 50 ? 'In Stock' : (productData.openingStock || 0) > 0 ? 'Low Stock' : 'Out of Stock',
+        status: 'In Stock',
         ai_recommendation: (productData.openingStock || 0) > 50 ? 'Optimal stock level' : 'Consider restocking',
         image: cleanImage
       };
@@ -164,7 +165,7 @@ const loadMoreProducts = async () => {
       }
 
       console.log('Product successfully added to Supabase:', data);
-      await fetchProducts(); // Refresh the list
+      await fetchProducts();
       return data;
     } catch (error) {
       console.error('Error in addProduct:', error);
@@ -175,9 +176,9 @@ const loadMoreProducts = async () => {
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     try {
       console.log('Updating product in Supabase:', id, updates);
-      
+
       const dbUpdates: any = {};
-      
+
       if (updates.name) dbUpdates.name = updates.name;
       if (updates.sku) dbUpdates.sku = updates.sku;
       if (updates.barcode !== undefined) dbUpdates.barcode = updates.barcode;
@@ -204,7 +205,7 @@ const loadMoreProducts = async () => {
       }
 
       console.log('Product updated successfully in Supabase');
-      await fetchProducts(); // Refresh the list
+      await fetchProducts();
     } catch (error) {
       console.error('Error in updateProduct:', error);
       throw error;
@@ -214,7 +215,7 @@ const loadMoreProducts = async () => {
   const deleteProduct = async (id: string) => {
     try {
       console.log('Deleting product from Supabase:', id);
-      
+
       const productToDelete = products.find(p => p.id === id);
       if (productToDelete) {
         console.log(`Preparing to delete product: ${productToDelete.name} (${productToDelete.sku})`);
@@ -231,7 +232,7 @@ const loadMoreProducts = async () => {
       }
 
       console.log('Product deleted successfully from Supabase');
-      await fetchProducts(); // Refresh the list
+      await fetchProducts();
     } catch (error) {
       console.error('Error in deleteProduct:', error);
       throw error;
@@ -245,11 +246,11 @@ const loadMoreProducts = async () => {
   const clearAllProducts = async () => {
     try {
       console.log('Clearing all products from Supabase...');
-      
+
       const { error } = await supabase
         .from('products')
         .delete()
-        .neq('id', ''); // Delete all records
+        .neq('id', '');
 
       if (error) {
         console.error('Supabase error clearing products:', error);
