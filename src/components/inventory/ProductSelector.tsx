@@ -1,4 +1,4 @@
-
+// ... অন্যান্য import
 import React,{ useRef,useEffect  } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -42,9 +42,10 @@ export const ProductSelector = ({
 
   const handleScroll = () => {
     console.log("scrolling...");
+
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
     if (nearBottom && hasMore) {
-      console.log("Reached bottom, loading more... Calling loadMoreProducts()"); // ADD THIS
+      console.log("Reached bottom, loading more...");
       loadMoreProducts();
     }
   };
@@ -53,12 +54,15 @@ export const ProductSelector = ({
   return () => el.removeEventListener("scroll", handleScroll);
 }, [hasMore, loadMoreProducts]);
 
+
   return (
-    <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start">
+    // এখানে পরিবর্তন: PopoverContent থেকে max-h-60 overflow-y-auto সরানো হয়েছে
+    <PopoverContent className="w-full p-0" align="start">
   <Command>
     <CommandInput placeholder="Search products..." />
     <CommandList
       ref={scrollRef}
+      // এখানে পরিবর্তন: CommandList-এ max-h-60 overflow-y-auto যোগ করা হয়েছে
       className="max-h-60 overflow-y-auto"
     >
       <CommandEmpty>No product found.</CommandEmpty>
