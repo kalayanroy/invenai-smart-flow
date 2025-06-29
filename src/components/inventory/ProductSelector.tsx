@@ -35,6 +35,7 @@ export const ProductSelector = ({
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const listRef = useRef<HTMLDivElement>(null);
 
+  loadMoreProducts();
   const handleScroll = useCallback(() => {
     const listElement = listRef.current;
     if (!listElement || !hasMore || isLoading) return;
