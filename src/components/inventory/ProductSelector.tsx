@@ -1,6 +1,5 @@
-// ProductSelector.tsx
 
-import React,{ useRef,useEffect  } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,8 +15,8 @@ interface ProductSelectorProps {
   onOpenChange: (open: boolean) => void;
   placeholder?: string;
   className?: string;
-  loadMoreProducts: () => void; // loadMoreProducts prop যোগ করা হয়েছে
-  hasMore: boolean; // hasMore prop যোগ করা হয়েছে
+  loadMoreProducts: () => void;
+  hasMore: boolean;
 }
 
 export const ProductSelector = ({
@@ -28,34 +27,27 @@ export const ProductSelector = ({
   onOpenChange,
   placeholder = "Select product...",
   className,
-  loadMoreProducts, // Destructure loadMoreProducts
-  hasMore // Destructure hasMore
-}: ProductSelectorProps) => { // Updated type to use ProductSelectorProps directly
-
+  loadMoreProducts,
+  hasMore
+}: ProductSelectorProps) => {
   const selectedProduct = products.find(p => p.id === selectedProductId);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // স্ক্রল ইভেন্টের জন্য useRef আর useEffect এখানে দরকার নেই যদি "Load More" বাটন ব্যবহার করেন
-  // তবে যদি স্ক্রল এবং বাটন দুটোই রাখতে চান, তাহলে এই অংশটি রাখতে পারেন।
-  // যেহেতু আপনি বাটন চাচ্ছেন, তাই এটি কমেন্ট আউট করা হলো বা বাদ দেওয়া যেতে পারে।
-  // const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
 
-  // useEffect(() => {
-  //   const el = scrollRef.current;
-  //   if (!el) return;
+    const handleScroll = () => {
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
+      if (nearBottom && hasMore) {
+        console.log("Reached bottom, loading more products...");
+        loadMoreProducts();
+      }
+    };
 
-  //   const handleScroll = () => {
-  //     console.log("scrolling...");
-  //     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
-  //     if (nearBottom && hasMore) {
-  //       console.log("Reached bottom, loading more...");
-  //       loadMoreProducts();
-  //     }
-  //   };
-
-  //   el.addEventListener("scroll", handleScroll);
-  //   return () => el.removeEventListener("scroll", handleScroll);
-  // }, [hasMore, loadMoreProducts]);
-
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loadMoreProducts]);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -73,8 +65,7 @@ export const ProductSelector = ({
       <PopoverContent className="w-full p-0" align="start">
         <Command>
           <CommandInput placeholder="Search products..." />
-          {/* CommandList-এ max-h এবং overflow যোগ করুন যাতে এটি নিজে স্ক্রল করতে পারে */}
-          <CommandList className="max-h-60 overflow-y-auto">
+          <CommandList ref={scrollRef} className="max-h-60 overflow-y-auto">
             <CommandEmpty>No product found.</CommandEmpty>
             <CommandGroup>
               {products.map((product) => (
@@ -96,10 +87,10 @@ export const ProductSelector = ({
                 </CommandItem>
               ))}
             </CommandGroup>
-            {true && (
+            {hasMore && (
               <div className="p-2">
                 <Button
-                  onClick={loadMoreProducts} // বাটনে ক্লিক করলে loadMoreProducts কল হবে
+                  onClick={loadMoreProducts}
                   className="w-full"
                   variant="ghost"
                 >
