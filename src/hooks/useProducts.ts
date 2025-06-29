@@ -25,7 +25,7 @@ export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 20;
   // Load products from Supabase on mount
   useEffect(() => {
     loadMoreProducts();
