@@ -14,11 +14,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
 
-// Virtual scrolling configuration
+// Progressive loading configuration
+const INITIAL_LOAD_COUNT = 5;
+const LOAD_MORE_COUNT = 10;
 const ITEM_HEIGHT = 80;
 const CONTAINER_HEIGHT = 600;
-const ITEMS_PER_PAGE = Math.ceil(CONTAINER_HEIGHT / ITEM_HEIGHT);
-const BUFFER_SIZE = 5;
 
 interface VirtualItem {
   index: number;
@@ -121,6 +121,10 @@ export const VirtualizedProductTable = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Progressive loading states
+  const [displayedCount, setDisplayedCount] = useState(INITIAL_LOAD_COUNT);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Virtual scrolling states
   const [scrollTop, setScrollTop] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,31 +150,66 @@ export const VirtualizedProductTable = () => {
     });
   }, [products, debouncedSearchTerm, categoryFilter, statusFilter]);
 
-  // Virtual scrolling calculations
-  const totalHeight = filteredProducts.length * ITEM_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+  // Progressive loading - only show a subset of filtered products
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, displayedCount);
+  }, [filteredProducts, displayedCount]);
+
+  // Reset displayed count when filters change
+  useEffect(() => {
+    setDisplayedCount(INITIAL_LOAD_COUNT);
+  }, [debouncedSearchTerm, categoryFilter, statusFilter]);
+
+  // Load more products when scrolling near bottom
+  const loadMoreProducts = useCallback(async () => {
+    if (isLoadingMore || displayedCount >= filteredProducts.length) return;
+    
+    setIsLoadingMore(true);
+    
+    // Simulate async loading for smoother UX
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    setDisplayedCount(prev => Math.min(prev + LOAD_MORE_COUNT, filteredProducts.length));
+    setIsLoadingMore(false);
+  }, [isLoadingMore, displayedCount, filteredProducts.length]);
+
+  // Virtual scrolling calculations for displayed products only
+  const totalHeight = displayedProducts.length * ITEM_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - 3);
   const endIndex = Math.min(
-    filteredProducts.length - 1,
-    Math.ceil((scrollTop + CONTAINER_HEIGHT) / ITEM_HEIGHT) + BUFFER_SIZE
+    displayedProducts.length - 1,
+    Math.ceil((scrollTop + CONTAINER_HEIGHT) / ITEM_HEIGHT) + 3
   );
 
   const visibleItems = useMemo(() => {
     const items: VirtualItem[] = [];
     for (let i = startIndex; i <= endIndex; i++) {
-      items.push({
-        index: i,
-        start: i * ITEM_HEIGHT,
-        end: (i + 1) * ITEM_HEIGHT
-      });
+      if (displayedProducts[i]) {
+        items.push({
+          index: i,
+          start: i * ITEM_HEIGHT,
+          end: (i + 1) * ITEM_HEIGHT
+        });
+      }
     }
     return items;
-  }, [startIndex, endIndex]);
+  }, [startIndex, endIndex, displayedProducts]);
+
+  // Enhanced scroll handler with progressive loading
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    const scrollHeight = e.currentTarget.scrollHeight;
+    const clientHeight = e.currentTarget.clientHeight;
+    
+    setScrollTop(scrollTop);
+    
+    // Load more when scrolled 80% of the way down
+    if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+      loadMoreProducts();
+    }
+  }, [loadMoreProducts]);
 
   // Event handlers
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
-  }, []);
-
   const handleView = useCallback((product: Product) => {
     setSelectedProduct(product);
     setShowViewDialog(true);
@@ -238,7 +277,7 @@ export const VirtualizedProductTable = () => {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Loading products...</span>
+        <span className="ml-2">Loading first 5 products...</span>
       </div>
     );
   }
@@ -262,7 +301,12 @@ export const VirtualizedProductTable = () => {
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Products ({filteredProducts.length} items)
+              Products ({displayedProducts.length} of {filteredProducts.length} items)
+              {displayedProducts.length < filteredProducts.length && (
+                <span className="text-sm text-gray-500">
+                  - Scroll to load more
+                </span>
+              )}
             </CardTitle>
             <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
               <DialogTrigger asChild>
@@ -302,7 +346,7 @@ export const VirtualizedProductTable = () => {
             <div style={{ height: totalHeight, position: 'relative' }}>
               {visibleItems.map(({ index, start }) => (
                 <div
-                  key={filteredProducts[index]?.id || index}
+                  key={displayedProducts[index]?.id || index}
                   style={{
                     position: 'absolute',
                     top: start,
@@ -311,9 +355,9 @@ export const VirtualizedProductTable = () => {
                     height: ITEM_HEIGHT
                   }}
                 >
-                  {filteredProducts[index] && (
+                  {displayedProducts[index] && (
                     <ProductRow
-                      product={filteredProducts[index]}
+                      product={displayedProducts[index]}
                       style={{}}
                       onView={handleView}
                       onEdit={handleEdit}
@@ -323,9 +367,17 @@ export const VirtualizedProductTable = () => {
                 </div>
               ))}
             </div>
+            
+            {/* Loading more indicator */}
+            {isLoadingMore && (
+              <div className="flex items-center justify-center p-4 border-t">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-2">Loading more products...</span>
+              </div>
+            )}
           </div>
 
-          {filteredProducts.length === 0 && (
+          {displayedProducts.length === 0 && !loading && (
             <div className="text-center py-8 text-gray-500">
               <p>No products found matching your criteria.</p>
               {activeFiltersCount > 0 && (
