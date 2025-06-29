@@ -1,503 +1,453 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, DollarSign, ShoppingBag, Eye, Edit, Trash2, FileText, Receipt } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useSales, Sale } from '@/hooks/useSales';
-import { useSalesVouchers, SalesVoucher } from '@/hooks/useSalesVouchers';
-import { useProducts } from '@/hooks/useProducts';
-import { usePurchases } from '@/hooks/usePurchases';
-import { useSalesReturns } from '@/hooks/useSalesReturns';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Receipt, FileText, Eye, Edit, Trash2 } from 'lucide-react';
+import { useSales } from '@/hooks/useSales';
+import { useSalesVouchers } from '@/hooks/useSalesVouchers';
 import { CreateSaleDialog } from './CreateSaleDialog';
-import { CreateSalesVoucherDialog } from './CreateSalesVoucherDialog';
-import { ViewSaleDialog } from './ViewSaleDialog';
 import { EditSaleDialog } from './EditSaleDialog';
-import { ViewSalesVoucherDialog } from './ViewSalesVoucherDialog';
+import { ViewSaleDialog } from './ViewSaleDialog';
+import { CreateSalesVoucherDialog } from './CreateSalesVoucherDialog';
 import { EditSalesVoucherDialog } from './EditSalesVoucherDialog';
-import { generateSalesInvoicePDF } from '@/utils/pdfGenerator';
-import { generateSalesVoucherPDF } from '@/utils/salesVoucherPdfGenerator';
+import { ViewSalesVoucherDialog } from './ViewSalesVoucherDialog';
+import { SalesFilters } from './SalesFilters';
+import { SalesVoucherFilters } from './SalesVoucherFilters';
 
 export const SalesSection = () => {
-  const { toast } = useToast();
-  const { sales, addSale, updateSale, deleteSale } = useSales();
+  const { sales, createSale, updateSale, deleteSale } = useSales();
   const { salesVouchers, createSalesVoucher, updateSalesVoucher, deleteSalesVoucher } = useSalesVouchers();
-  const { fetchProducts } = useProducts();
-  const { fetchSales } = useSales();
-const {  fetchPurchases } = usePurchases();
-const {  fetchSalesReturns } = useSalesReturns();
-const {  fetchSalesVouchers } = useSalesVouchers();
-  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Sales state
   const [showCreateSale, setShowCreateSale] = useState(false);
-  const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [showViewSale, setShowViewSale] = useState(false);
   const [showEditSale, setShowEditSale] = useState(false);
-  const [showViewVoucher, setShowViewVoucher] = useState(false);
+  const [showViewSale, setShowViewSale] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<any>(null);
+
+  // Sales Vouchers state
+  const [showCreateVoucher, setShowCreateVoucher] = useState(false);
   const [showEditVoucher, setShowEditVoucher] = useState(false);
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
-  const [selectedVoucher, setSelectedVoucher] = useState<SalesVoucher | null>(null);
+  const [showViewVoucher, setShowViewVoucher] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Sales filters
+  const [salesSearchTerm, setSalesSearchTerm] = useState('');
+  const [salesStatusFilter, setSalesStatusFilter] = useState('all');
+  const [salesDateRange, setSalesDateRange] = useState('all');
+
+  // Sales Voucher filters
+  const [voucherSearchTerm, setVoucherSearchTerm] = useState('');
+  const [voucherCustomerFilter, setVoucherCustomerFilter] = useState('all');
+  const [voucherDateRange, setVoucherDateRange] = useState('all');
+
+  // Get unique customers from vouchers
+  const uniqueCustomers = useMemo(() => {
+    const customers = salesVouchers
+      .map(voucher => voucher.customerName)
+      .filter(Boolean)
+      .filter((value, index, self) => self.indexOf(value) === index);
+    return customers;
+  }, [salesVouchers]);
+
+  // Filter sales vouchers based on search term (voucher number, customer name, items)
+  const filteredSalesVouchers = useMemo(() => {
+    return salesVouchers.filter(voucher => {
+      // Search filter - search in voucher number, customer name, and items
+      if (voucherSearchTerm) {
+        const searchLower = voucherSearchTerm.toLowerCase();
+        const matchesVoucherNumber = voucher.voucherNumber.toLowerCase().includes(searchLower);
+        const matchesCustomer = voucher.customerName?.toLowerCase().includes(searchLower) || false;
+        const matchesItems = voucher.items.some(item => 
+          item.productName.toLowerCase().includes(searchLower) ||
+          item.productId.toLowerCase().includes(searchLower)
+        );
+        
+        if (!matchesVoucherNumber && !matchesCustomer && !matchesItems) {
+          return false;
+        }
+      }
+
+      // Customer filter
+      if (voucherCustomerFilter !== 'all' && voucher.customerName !== voucherCustomerFilter) {
+        return false;
+      }
+
+      // Date range filter
+      if (voucherDateRange !== 'all') {
+        const voucherDate = new Date(voucher.date);
+        const today = new Date();
+        const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+        
+        switch (voucherDateRange) {
+          case 'today':
+            if (voucherDate < startOfDay) return false;
+            break;
+          case 'week':
+            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (voucherDate < weekAgo) return false;
+            break;
+          case 'month':
+            const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            if (voucherDate < monthAgo) return false;
+            break;
+          case 'quarter':
+            const quarterAgo = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+            if (voucherDate < quarterAgo) return false;
+            break;
+          case 'year':
+            const yearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+            if (voucherDate < yearAgo) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  }, [salesVouchers, voucherSearchTerm, voucherCustomerFilter, voucherDateRange]);
+
+  // Filter regular sales
+  const filteredSales = useMemo(() => {
+    return sales.filter(sale => {
+      if (salesSearchTerm && !sale.productName.toLowerCase().includes(salesSearchTerm.toLowerCase()) && 
+          !sale.customerName?.toLowerCase().includes(salesSearchTerm.toLowerCase())) {
+        return false;
+      }
+      if (salesStatusFilter !== 'all' && sale.status !== salesStatusFilter) {
+        return false;
+      }
+      // Date range logic for regular sales...
+      return true;
+    });
+  }, [sales, salesSearchTerm, salesStatusFilter, salesDateRange]);
+
+  // Count active filters for vouchers
+  const activeVoucherFiltersCount = useMemo(() => {
+    let count = 0;
+    if (voucherSearchTerm) count++;
+    if (voucherCustomerFilter !== 'all') count++;
+    if (voucherDateRange !== 'all') count++;
+    return count;
+  }, [voucherSearchTerm, voucherCustomerFilter, voucherDateRange]);
+
+  // Count active filters for sales
+  const activeSalesFiltersCount = useMemo(() => {
+    let count = 0;
+    if (salesSearchTerm) count++;
+    if (salesStatusFilter !== 'all') count++;
+    if (salesDateRange !== 'all') count++;
+    return count;
+  }, [salesSearchTerm, salesStatusFilter, salesDateRange]);
+
+  const clearVoucherFilters = () => {
+    setVoucherSearchTerm('');
+    setVoucherCustomerFilter('all');
+    setVoucherDateRange('all');
+  };
+
+  const clearSalesFilters = () => {
+    setSalesSearchTerm('');
+    setSalesStatusFilter('all');
+    setSalesDateRange('all');
+  };
+
+  // Dialog handlers
+  const handleCreateSale = async (saleData: any) => {
+    try {
+      await createSale(saleData);
+      setShowCreateSale(false);
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      alert("Could not create sale. Please try again.");
     }
   };
 
-  const totalRevenue = sales.reduce((sum, sale) => 
-    sum + parseFloat(sale.totalAmount.replace('৳', '').replace(',', '')), 0
-  );
-
-  const totalVoucherRevenue = salesVouchers.reduce((sum, voucher) => sum + voucher.finalAmount, 0);
-  const grandTotalRevenue = totalRevenue + totalVoucherRevenue;
-
-  const handleSaleCreated = (saleData: any) => {
-    addSale(saleData);
-    toast({
-      title: "Sale Recorded",
-      description: "The sale has been recorded successfully.",
-    });
-  };
-
-  const handleViewSale = (sale: Sale) => {
-    setSelectedSale(sale);
-    setShowViewSale(true);
-  };
-
-  const handleEditSale = (sale: Sale) => {
-    setSelectedSale(sale);
-    setShowEditSale(true);
-  };
-
-  const handleSaleUpdated = (id: string, updates: Partial<Sale>) => {
-    updateSale(id, updates);
-    toast({
-      title: "Sale Updated",
-      description: `Sale ${id} has been updated successfully.`,
-    });
-  };
-
-  const handleDeleteSale = async (sale: Sale) => {
-    if (window.confirm(`Are you sure you want to delete sale ${sale.id}?`)) {
-      deleteSale(sale.id);
-      // Automatically refresh products to update stock calculations
-      // ✅ Add missing fetches here
-  await Promise.all([
-    fetchProducts(),
-    fetchSales?.(),
-    fetchPurchases?.(),
-    fetchSalesReturns?.(),
-    fetchSalesVouchers?.(),
-  ]);
-      setRefreshKey(prev => prev + 1); // triggers rerender
-      toast({
-        title: "Sale Deleted",
-        description: `Sale ${sale.id} has been deleted.`,
-      });
-
+  const handleUpdateSale = async (id: string, updates: any) => {
+    try {
+      await updateSale(id, updates);
+      setShowEditSale(false);
+    } catch (error) {
+      console.error("Error updating sale:", error);
+      alert("Could not update sale. Please try again.");
     }
   };
 
-  const handlePrintInvoice = (sale: Sale) => {
-    generateSalesInvoicePDF(sale);
-    toast({
-      title: "Invoice Generated",
-      description: `Sales invoice for ${sale.id} has been generated.`,
-    });
+  const handleDeleteSale = async (id: string) => {
+    if (confirm("Are you sure you want to delete this sale?")) {
+      try {
+        await deleteSale(id);
+      } catch (error) {
+        console.error("Error deleting sale:", error);
+        alert("Could not delete sale. Please try again.");
+      }
+    }
   };
 
-  const handleVoucherCreated = async (voucherData: any) => {
+  const handleCreateSalesVoucher = async (voucherData: any) => {
     try {
       await createSalesVoucher(voucherData);
-      // Automatically refresh products to update stock calculations
-      //await fetchProducts();
-      await Promise.all([
-  fetchProducts(),
-  fetchSales(),
-  fetchSalesReturns(),
-  fetchPurchases(),
-]);
-
-      toast({
-        title: "Sales Voucher Created",
-        description: "The sales voucher has been created successfully.",
-      });
+      setShowCreateVoucher(false);
     } catch (error) {
-      console.error('Error creating voucher:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create sales voucher. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error creating sales voucher:", error);
+      alert("Could not create sales voucher. Please try again.");
     }
   };
 
-  const handleViewVoucher = (voucher: SalesVoucher) => {
-    setSelectedVoucher(voucher);
-    setShowViewVoucher(true);
-  };
-
-  const handleEditVoucher = (voucher: SalesVoucher) => {
-    setSelectedVoucher(voucher);
-    setShowEditVoucher(true);
-  };
-
-  const handleVoucherUpdated = async (id: string, updates: Partial<SalesVoucher>) => {
+  const handleUpdateSalesVoucher = async (id: string, updates: any) => {
     try {
       await updateSalesVoucher(id, updates);
-      // Automatically refresh products to update stock calculations
-      await fetchProducts();
-      toast({
-        title: "Voucher Updated",
-        description: `Voucher ${id} has been updated successfully.`,
-      });
+      setShowEditVoucher(false);
     } catch (error) {
-      console.error('Error updating voucher:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update voucher. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error updating sales voucher:", error);
+      alert("Could not update sales voucher. Please try again.");
     }
   };
 
-  const handlePrintVoucher = (voucher: SalesVoucher) => {
-    generateSalesVoucherPDF(voucher);
-    toast({
-      title: "Voucher PDF Generated",
-      description: `Sales voucher PDF for ${voucher.voucherNumber} has been generated.`,
-    });
-  };
-
-  const handleDeleteVoucher = async (voucherId: string) => {
-    if (window.confirm(`Are you sure you want to delete voucher ${voucherId}?`)) {
+  const handleDeleteSalesVoucher = async (id: string) => {
+    if (confirm("Are you sure you want to delete this voucher?")) {
       try {
-        await deleteSalesVoucher(voucherId);
-        // Automatically refresh products to update stock calculations
-        await fetchProducts();
-        toast({
-          title: "Voucher Deleted",
-          description: `Voucher ${voucherId} has been deleted.`,
-        });
+        await deleteSalesVoucher(id);
       } catch (error) {
-        console.error('Error deleting voucher:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete voucher. Please try again.",
-          variant: "destructive",
-        });
+        console.error("Error deleting sales voucher:", error);
+        alert("Could not delete sales voucher. Please try again.");
       }
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Sales Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-sm text-gray-600">Single Sales</p>
-                <p className="text-2xl font-bold">{sales.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-sm text-gray-600">Sales Vouchers</p>
-                <p className="text-2xl font-bold">{salesVouchers.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">৳{grandTotalRevenue.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-orange-600" />
-              <div>
-                <p className="text-sm text-gray-600">Items Sold</p>
-                <p className="text-2xl font-bold">
-                  {sales.reduce((sum, sale) => sum + sale.quantity, 0) + 
-                   salesVouchers.reduce((sum, voucher) => sum + voucher.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Sales Management</h2>
       </div>
 
-      {/* Sales Tabs */}
       <Tabs defaultValue="vouchers" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="vouchers">Multi-Item Sales (Vouchers)</TabsTrigger>
-          <TabsTrigger value="single">Single Item Sales</TabsTrigger>
+          <TabsTrigger value="vouchers" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            Sales Vouchers ({salesVouchers.length})
+          </TabsTrigger>
+          <TabsTrigger value="sales" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Individual Sales ({sales.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="vouchers" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Sales Vouchers ({salesVouchers.length} vouchers)</CardTitle>
-                <Button 
-                  className="flex items-center gap-2"
-                  onClick={() => setShowCreateVoucher(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Create Sales Voucher
+                <CardTitle>Sales Vouchers</CardTitle>
+                <Button onClick={() => setShowCreateVoucher(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Voucher
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Voucher #</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Items</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Total Amount</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Final Amount</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {salesVouchers.map((voucher) => (
-                      <tr key={voucher.id} className="border-b hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4 text-sm font-mono">{voucher.voucherNumber}</td>
-                        <td className="py-4 px-4 text-sm">{voucher.customerName || 'Walk-in Customer'}</td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm">
-                            {voucher.items.length} item(s)
-                            <div className="text-xs text-gray-500">
-                              {voucher.items.slice(0, 2).map(item => item.productName).join(', ')}
-                              {voucher.items.length > 2 && '...'}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 font-medium">৳{voucher.totalAmount.toLocaleString()}</td>
-                        <td className="py-4 px-4 font-bold text-green-600">৳{voucher.finalAmount.toLocaleString()}</td>
-                        <td className="py-4 px-4 text-sm">{new Date(voucher.date).toLocaleDateString()}</td>
-                        <td className="py-4 px-4">
-                          <Badge className={getStatusColor(voucher.status)}>
+            <CardContent className="space-y-4">
+              <SalesVoucherFilters
+                searchTerm={voucherSearchTerm}
+                setSearchTerm={setVoucherSearchTerm}
+                customerFilter={voucherCustomerFilter}
+                setCustomerFilter={setVoucherCustomerFilter}
+                dateRange={voucherDateRange}
+                setDateRange={setVoucherDateRange}
+                customers={uniqueCustomers}
+                onClearFilters={clearVoucherFilters}
+                activeFiltersCount={activeVoucherFiltersCount}
+              />
+
+              <div className="space-y-2">
+                {filteredSalesVouchers.map((voucher) => (
+                  <div key={voucher.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="font-medium">{voucher.voucherNumber}</p>
+                          <p className="text-sm text-gray-600">
+                            {voucher.customerName || 'Walk-in Customer'} • {voucher.date}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {voucher.items.length} item(s) • {voucher.items.map(item => item.productName).join(', ')}
+                          </p>
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="font-semibold text-green-600">৳{voucher.finalAmount.toFixed(2)}</p>
+                          <Badge variant={voucher.status === 'Completed' ? 'default' : voucher.status === 'Pending' ? 'secondary' : 'destructive'}>
                             {voucher.status}
                           </Badge>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex space-x-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleViewVoucher(voucher)}
-                              title="View Voucher"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleEditVoucher(voucher)}
-                              title="Edit Voucher"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handlePrintVoucher(voucher)}
-                              title="Print Voucher"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteVoucher(voucher.id)}
-                              title="Delete Voucher"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedVoucher(voucher);
+                          setShowViewVoucher(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedVoucher(voucher);
+                          setShowEditVoucher(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this voucher?')) {
+                            deleteSalesVoucher(voucher.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {filteredSalesVouchers.length === 0 && (
+                  <p className="text-center py-8 text-gray-500">No vouchers found matching your filters.</p>
+                )}
               </div>
-              
-              {salesVouchers.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No sales vouchers found. Create your first voucher to get started.</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="single" className="space-y-4">
+        <TabsContent value="sales" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Single Item Sales ({sales.length} transactions)</CardTitle>
-                <Button 
-                  className="flex items-center gap-2"
-                  onClick={() => setShowCreateSale(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Record New Sale
+                <CardTitle>Individual Sales</CardTitle>
+                <Button onClick={() => setShowCreateSale(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Sale
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Sale ID</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Total</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sales.map((sale) => (
-                      <tr key={sale.id} className="border-b hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4 text-sm font-mono">{sale.id}</td>
-                        <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">{sale.productName}</div>
-                          <div className="text-sm text-gray-500">SKU: {sale.productId}</div>
-                        </td>
-                        <td className="py-4 px-4 text-sm">{sale.customerName || 'Walk-in Customer'}</td>
-                        <td className="py-4 px-4">{sale.quantity}</td>
-                        <td className="py-4 px-4">{sale.unitPrice}</td>
-                        <td className="py-4 px-4 font-semibold">{sale.totalAmount}</td>
-                        <td className="py-4 px-4 text-sm">{new Date(sale.date).toLocaleDateString()}</td>
-                        <td className="py-4 px-4">
-                          <Badge className={getStatusColor(sale.status)}>
+            <CardContent className="space-y-4">
+              <SalesFilters
+                searchTerm={salesSearchTerm}
+                setSearchTerm={setSalesSearchTerm}
+                statusFilter={salesStatusFilter}
+                setStatusFilter={setSalesStatusFilter}
+                dateRange={salesDateRange}
+                setDateRange={setSalesDateRange}
+                onClearFilters={clearSalesFilters}
+                activeFiltersCount={activeSalesFiltersCount}
+              />
+
+              <div className="space-y-2">
+                {filteredSales.map((sale) => (
+                  <div key={sale.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="font-medium">{sale.productName}</p>
+                          <p className="text-sm text-gray-600">
+                            {sale.customerName || 'Walk-in Customer'} • {sale.date}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Qty: {sale.quantity} • Unit: ৳{sale.unitPrice}
+                          </p>
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="font-semibold text-green-600">৳{sale.totalAmount}</p>
+                          <Badge variant={sale.status === 'Completed' ? 'default' : 'secondary'}>
                             {sale.status}
                           </Badge>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex space-x-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleViewSale(sale)}
-                              title="View Sale"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleEditSale(sale)}
-                              title="Edit Sale"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handlePrintInvoice(sale)}
-                              title="Print Invoice"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteSale(sale)}
-                              title="Delete Sale"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSale(sale);
+                          setShowViewSale(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSale(sale);
+                          setShowEditSale(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this sale?')) {
+                            deleteSale(sale.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {filteredSales.length === 0 && (
+                  <p className="text-center py-8 text-gray-500">No sales found matching your filters.</p>
+                )}
               </div>
-              
-              {sales.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No sales records found. Record your first sale to get started.</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
+      {/* Sales Dialogs */}
       <CreateSaleDialog
         open={showCreateSale}
         onOpenChange={setShowCreateSale}
-        onSaleCreated={handleSaleCreated}
+        onSaleCreated={createSale}
       />
-
-      <CreateSalesVoucherDialog
-        open={showCreateVoucher}
-        onOpenChange={setShowCreateVoucher}
-        onVoucherCreated={handleVoucherCreated}
+      
+      <EditSaleDialog
+        open={showEditSale}
+        onOpenChange={setShowEditSale}
+        sale={selectedSale}
+        onSaleUpdated={updateSale}
       />
-
+      
       <ViewSaleDialog
         open={showViewSale}
         onOpenChange={setShowViewSale}
         sale={selectedSale}
       />
 
-      <EditSaleDialog
-        open={showEditSale}
-        onOpenChange={setShowEditSale}
-        sale={selectedSale}
-        onSaleUpdated={handleSaleUpdated}
+      {/* Sales Voucher Dialogs */}
+      <CreateSalesVoucherDialog
+        open={showCreateVoucher}
+        onOpenChange={setShowCreateVoucher}
+        onVoucherCreated={createSalesVoucher}
       />
-
-      <ViewSalesVoucherDialog
-        open={showViewVoucher}
-        onOpenChange={setShowViewVoucher}
-        voucher={selectedVoucher}
-      />
-
+      
       <EditSalesVoucherDialog
         open={showEditVoucher}
         onOpenChange={setShowEditVoucher}
         voucher={selectedVoucher}
-        onVoucherUpdated={handleVoucherUpdated}
+        onVoucherUpdated={updateSalesVoucher}
+      />
+      
+      <ViewSalesVoucherDialog
+        open={showViewVoucher}
+        onOpenChange={setShowViewVoucher}
+        voucher={selectedVoucher}
       />
     </div>
   );
