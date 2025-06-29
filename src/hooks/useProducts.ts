@@ -28,7 +28,7 @@ export const useProducts = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     loadMoreProducts();
