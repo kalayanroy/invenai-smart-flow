@@ -1,5 +1,5 @@
 
-import React,{ useRef } from 'react';
+import React,{ useRef,useEffect  } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -33,25 +33,38 @@ export const ProductSelector = ({
 }) => {
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const handleScroll = () => {
-    const el = listRef.current;
-    if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
-      // near bottom
-      loadMoreProducts();
-    }
-  };
+   useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
+      if (nearBottom && hasMore) {
+        loadMoreProducts();
+      }
+    };
+
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loadMoreProducts]);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className={cn("w-full justify-between", className)}>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("w-full justify-between", className)}
+        >
           {selectedProduct ? selectedProduct.name : placeholder}
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start" ref={listRef} onScroll={handleScroll}>
+
+      <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto" align="start" ref={scrollRef}>
         <Command>
           <CommandInput placeholder="Search products..." />
           <CommandList>
