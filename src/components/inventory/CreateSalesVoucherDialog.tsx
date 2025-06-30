@@ -94,12 +94,18 @@ export const CreateSalesVoucherDialog = ({ open, onOpenChange, onVoucherCreated 
   const handleProductSelect = (index: number, productId: string, productData: any) => {
     console.log('Product selected in sales voucher dialog:', { productId, productData });
     
+    // Clean the sell price string and convert to number for sales voucher
+    const priceString = productData.sellPrice ? productData.sellPrice.replace(/[^\d.-]/g, '') : '0';
+    const unitPrice = parseFloat(priceString) || 0;
+    
+    console.log('Using sell price for sales voucher:', productData.sellPrice, 'parsed to:', unitPrice);
+    
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
       productId: productId,
       productName: productData.name,
-      unitPrice: productData.unitPrice
+      unitPrice: unitPrice // Use sell price for sales voucher
     };
     
     // Recalculate total amount
