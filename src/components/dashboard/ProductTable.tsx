@@ -32,12 +32,18 @@ export const ProductTable = () => {
     return [...new Set(products.map(p => p.category))];
   }, [products]);
 
-  // Filter products
+  // Enhanced filter products with more comprehensive search
   const filteredProducts = useMemo(() => {
+    console.log('Filtering products with search term:', searchTerm);
+    
     return products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.category.toLowerCase().includes(searchTerm.toLowerCase());
+      // Enhanced search that includes name, SKU, category, and barcode
+      const searchLower = searchTerm.toLowerCase().trim();
+      const matchesSearch = !searchTerm || 
+        product.name.toLowerCase().includes(searchLower) ||
+        product.sku.toLowerCase().includes(searchLower) ||
+        product.category.toLowerCase().includes(searchLower) ||
+        (product.barcode && product.barcode.toLowerCase().includes(searchLower));
       
       const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
@@ -61,14 +67,20 @@ export const ProductTable = () => {
         }
       }
       
-      return matchesSearch && matchesCategory && matchesStatus && matchesStock;
+      const result = matchesSearch && matchesCategory && matchesStatus && matchesStock;
+      
+      if (searchTerm && result) {
+        console.log('Product matches search:', product.name, product.sku);
+      }
+      
+      return result;
     });
   }, [products, searchTerm, categoryFilter, statusFilter, stockFilter]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (searchTerm) count++;
+    if (searchTerm.trim()) count++;
     if (categoryFilter !== 'all') count++;
     if (statusFilter !== 'all') count++;
     if (stockFilter !== 'all') count++;
@@ -113,6 +125,7 @@ export const ProductTable = () => {
   }
 
   const clearFilters = () => {
+    console.log('Clearing all filters');
     setSearchTerm('');
     setCategoryFilter('all');
     setStatusFilter('all');
@@ -208,6 +221,11 @@ export const ProductTable = () => {
             {activeFiltersCount > 0 && (
               <span className="text-sm font-normal text-gray-500 ml-2">
                 - {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} applied
+              </span>
+            )}
+            {searchTerm && (
+              <span className="text-sm font-normal text-blue-600 ml-2">
+                - searching for "{searchTerm}"
               </span>
             )}
           </CardTitle>
@@ -322,11 +340,16 @@ export const ProductTable = () => {
           
           {filteredProducts.length === 0 && !loading && (
             <div className="text-center py-8 text-gray-500">
-              {activeFiltersCount > 0 ? (
+              {activeFiltersCount > 0 || searchTerm ? (
                 <div>
-                  <p>No products found matching your filters.</p>
+                  <p>No products found matching your search criteria.</p>
+                  <p className="text-sm mt-1">
+                    {searchTerm && `Search: "${searchTerm}"`}
+                    {searchTerm && activeFiltersCount > 0 && ' with '}
+                    {activeFiltersCount > 0 && `${activeFiltersCount} filter${activeFiltersCount > 1 ? 's' : ''} applied`}
+                  </p>
                   <Button variant="outline" onClick={clearFilters} className="mt-2">
-                    Clear Filters
+                    Clear All Filters
                   </Button>
                 </div>
               ) : (
