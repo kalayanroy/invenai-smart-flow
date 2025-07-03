@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2 } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { Purchase } from '@/hooks/usePurchases';
-import { ProductSelector } from './ProductSelector';
+import { ProductSelectorDropdown } from './ProductSelectorDropdown';
 
 interface PurchaseItem {
   productId: string;
@@ -47,17 +47,13 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }
   ]);
 
-  const [openProductSelectors, setOpenProductSelectors] = useState<boolean[]>([false]);
-
   const addItem = () => {
     setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
-    setOpenProductSelectors([...openProductSelectors, false]);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
-      setOpenProductSelectors(openProductSelectors.filter((_, i) => i !== index));
     }
   };
 
@@ -75,7 +71,7 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     setItems(updatedItems);
   };
 
-  // Handle product selection with proper data from ProductSelector
+  // Handle product selection with proper data from ProductSelectorDropdown
   const handleProductSelect = (index: number, productId: string, productData: any) => {
     console.log('Product selected in dialog:', { productId, productData });
     
@@ -93,12 +89,6 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     
     console.log('Updated item:', updatedItems[index]);
     setItems(updatedItems);
-  };
-
-  const setProductSelectorOpen = (index: number, open: boolean) => {
-    const newOpenStates = [...openProductSelectors];
-    newOpenStates[index] = open;
-    setOpenProductSelectors(newOpenStates);
   };
 
   const getTotalAmount = () => {
@@ -144,7 +134,6 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
       notes: ''
     });
     setItems([{ productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
-    setOpenProductSelectors([false]);
   };
 
   const isFormValid = items.some(item => item.productId && item.quantity > 0) && formData.supplier.trim();
@@ -216,15 +205,13 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Product *</Label>
-                      <ProductSelector
+                      <ProductSelectorDropdown
                         products={products}
                         selectedProductId={item.productId}
                         onProductSelect={(productId, productData) => {
                           handleProductSelect(index, productId, productData);
                         }}
-                        open={openProductSelectors[index]}
-                        onOpenChange={(open) => setProductSelectorOpen(index, open)}
-                        placeholder="Select product..."
+                        placeholder="Search products by name, SKU, or barcode..."
                         className="w-full"
                         loadMoreProducts={loadMoreProducts}
                         hasMore={hasMore}
