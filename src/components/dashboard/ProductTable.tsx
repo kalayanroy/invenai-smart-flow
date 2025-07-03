@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +13,7 @@ import { ProductTableFilters } from './ProductTableFilters';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 export const ProductTable = () => {
   const { toast } = useToast();
@@ -34,11 +34,70 @@ export const ProductTable = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedProductFromDropdown, setSelectedProductFromDropdown] = useState<Product | null>(null);
   const [dropdownSearchTerm, setDropdownSearchTerm] = useState('');
+  const [dropdownSearchResults, setDropdownSearchResults] = useState<Product[]>([]);
+  const [isDropdownSearching, setIsDropdownSearching] = useState(false);
 
   // Get unique categories
   const categories = useMemo(() => {
     return [...new Set(products.map(p => p.category))];
   }, [products]);
+
+  // Search products in database for dropdown
+  const searchProductsInDatabase = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setDropdownSearchResults([]);
+      return;
+    }
+
+    setIsDropdownSearching(true);
+    try {
+      console.log('Searching products in database:', query);
+      
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .or(`name.ilike.%${query}%,sku.ilike.%${query}%,barcode.ilike.%${query}%,category.ilike.%${query}%`)
+        .order('name')
+        .limit(20);
+
+      if (error) {
+        console.error('Error searching products:', error);
+        return;
+      }
+
+      const mappedProducts = data.map(product => ({
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode || '',
+        category: product.category,
+        stock: product.stock,
+        reorderPoint: product.reorder_point,
+        price: product.price,
+        purchasePrice: product.purchase_price,
+        sellPrice: product.sell_price,
+        openingStock: product.opening_stock,
+        unit: product.unit,
+        status: product.status,
+        aiRecommendation: product.ai_recommendation || '',
+        image: product.image,
+        createdAt: product.created_at
+      }));
+
+      console.log(`Found ${mappedProducts.length} products matching "${query}"`);
+      setDropdownSearchResults(mappedProducts);
+    } catch (error) {
+      console.error('Error in searchProductsInDatabase:', error);
+    } finally {
+      setIsDropdownSearching(false);
+    }
+  }, []);
+
+  // Handle dropdown search input change
+  const handleDropdownSearchChange = useCallback((value: string) => {
+    setDropdownSearchTerm(value);
+    searchProductsInDatabase(value);
+  }, [searchProductsInDatabase]);
 
   // Enhanced filter products with more comprehensive search
   const filteredProducts = useMemo(() => {
@@ -87,16 +146,23 @@ export const ProductTable = () => {
 
   // Filter products for dropdown based on dropdown search term
   const dropdownFilteredProducts = useMemo(() => {
-    if (!dropdownSearchTerm.trim()) return products.slice(0, 10); // Show first 10 if no search
+    if (dropdownSearchTerm.trim() && dropdownSearchResults.length > 0) {
+      return dropdownSearchResults;
+    }
     
+    if (!dropdownSearchTerm.trim()) {
+      return products.slice(0, 10); // Show first 10 if no search
+    }
+    
+    // Local search in loaded products as fallback
     const searchLower = dropdownSearchTerm.toLowerCase().trim();
     return products.filter(product => 
       product.name.toLowerCase().includes(searchLower) ||
       product.sku.toLowerCase().includes(searchLower) ||
       product.category.toLowerCase().includes(searchLower) ||
       (product.barcode && product.barcode.toLowerCase().includes(searchLower))
-    ).slice(0, 10); // Limit to 10 results for performance
-  }, [products, dropdownSearchTerm]);
+    ).slice(0, 10);
+  }, [products, dropdownSearchTerm, dropdownSearchResults]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -153,12 +219,14 @@ export const ProductTable = () => {
     setStockFilter('all');
     setSelectedProductFromDropdown(null);
     setDropdownSearchTerm('');
+    setDropdownSearchResults([]);
   };
 
   const handleProductSelectFromDropdown = (product: Product) => {
     setSelectedProductFromDropdown(product);
     setDropdownOpen(false);
     setDropdownSearchTerm('');
+    setDropdownSearchResults([]);
     // Also update the main search to show this product
     setSearchTerm(product.name);
   };
@@ -253,11 +321,13 @@ export const ProductTable = () => {
                     <CommandInput 
                       placeholder="Search products..." 
                       value={dropdownSearchTerm}
-                      onValueChange={setDropdownSearchTerm}
+                      onValueChange={handleDropdownSearchChange}
                     />
                     <CommandList className="max-h-60 overflow-y-auto">
                       <CommandEmpty>
-                        {loading ? "Loading products..." : "No product found."}
+                        {isDropdownSearching ? "Searching..." : 
+                         loading && !dropdownSearchTerm ? "Loading products..." : 
+                         "No product found."}
                       </CommandEmpty>
                       <CommandGroup>
                         {dropdownFilteredProducts.map((product) => (
@@ -281,6 +351,14 @@ export const ProductTable = () => {
                             </div>
                           </CommandItem>
                         ))}
+                        
+                        {/* Search loading indicator */}
+                        {isDropdownSearching && (
+                          <div className="flex items-center justify-center p-4">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span className="text-sm text-gray-500">Searching products...</span>
+                          </div>
+                        )}
                       </CommandGroup>
                     </CommandList>
                   </Command>
@@ -293,6 +371,7 @@ export const ProductTable = () => {
                 onClick={() => {
                   setSelectedProductFromDropdown(null);
                   setSearchTerm('');
+                  setDropdownSearchResults([]);
                 }}
                 className="h-10"
               >
