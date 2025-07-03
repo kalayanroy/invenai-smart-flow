@@ -3,14 +3,17 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
+import { Eye, Edit, Trash2, Plus, Loader2, ChevronDown, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CreateProductForm } from '../inventory/CreateProductForm';
 import { ProductViewDialog } from '../inventory/ProductViewDialog';
 import { ProductEditDialog } from '../inventory/ProductEditDialog';
 import { ProductTableFilters } from './ProductTableFilters';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts, Product } from '@/hooks/useProducts';
+import { cn } from '@/lib/utils';
 
 export const ProductTable = () => {
   const { toast } = useToast();
@@ -26,6 +29,11 @@ export const ProductTable = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
+  
+  // Dropdown search states
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedProductFromDropdown, setSelectedProductFromDropdown] = useState<Product | null>(null);
+  const [dropdownSearchTerm, setDropdownSearchTerm] = useState('');
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -76,6 +84,19 @@ export const ProductTable = () => {
       return result;
     });
   }, [products, searchTerm, categoryFilter, statusFilter, stockFilter]);
+
+  // Filter products for dropdown based on dropdown search term
+  const dropdownFilteredProducts = useMemo(() => {
+    if (!dropdownSearchTerm.trim()) return products.slice(0, 10); // Show first 10 if no search
+    
+    const searchLower = dropdownSearchTerm.toLowerCase().trim();
+    return products.filter(product => 
+      product.name.toLowerCase().includes(searchLower) ||
+      product.sku.toLowerCase().includes(searchLower) ||
+      product.category.toLowerCase().includes(searchLower) ||
+      (product.barcode && product.barcode.toLowerCase().includes(searchLower))
+    ).slice(0, 10); // Limit to 10 results for performance
+  }, [products, dropdownSearchTerm]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -130,6 +151,16 @@ export const ProductTable = () => {
     setCategoryFilter('all');
     setStatusFilter('all');
     setStockFilter('all');
+    setSelectedProductFromDropdown(null);
+    setDropdownSearchTerm('');
+  };
+
+  const handleProductSelectFromDropdown = (product: Product) => {
+    setSelectedProductFromDropdown(product);
+    setDropdownOpen(false);
+    setDropdownSearchTerm('');
+    // Also update the main search to show this product
+    setSearchTerm(product.name);
   };
 
   const getStatusColor = (status: string) => {
@@ -194,6 +225,84 @@ export const ProductTable = () => {
         </div>
       </div>
 
+      {/* Product Search Dropdown */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search & Select Product
+              </label>
+              <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={dropdownOpen}
+                    className="w-full justify-between h-10"
+                  >
+                    {selectedProductFromDropdown 
+                      ? `${selectedProductFromDropdown.name} (${selectedProductFromDropdown.sku})`
+                      : "Search products by name, SKU, or barcode..."
+                    }
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-white border shadow-lg z-50" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search products..." 
+                      value={dropdownSearchTerm}
+                      onValueChange={setDropdownSearchTerm}
+                    />
+                    <CommandList className="max-h-60 overflow-y-auto">
+                      <CommandEmpty>
+                        {loading ? "Loading products..." : "No product found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {dropdownFilteredProducts.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={`${product.name}-${product.id}`}
+                            onSelect={() => handleProductSelectFromDropdown(product)}
+                            className="cursor-pointer"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProductFromDropdown?.id === product.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                SKU: {product.sku} | Stock: {product.stock} | {product.category}
+                              </span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            {selectedProductFromDropdown && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedProductFromDropdown(null);
+                  setSearchTerm('');
+                }}
+                className="h-10"
+              >
+                Clear Selection
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Filters */}
       <Card>
         <CardContent className="p-6">
@@ -228,6 +337,11 @@ export const ProductTable = () => {
                 - searching for "{searchTerm}"
               </span>
             )}
+            {selectedProductFromDropdown && (
+              <span className="text-sm font-normal text-green-600 ml-2">
+                - selected: {selectedProductFromDropdown.name}
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -247,7 +361,13 @@ export const ProductTable = () => {
               </thead>
               <tbody>
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b hover:bg-gray-50 transition-colors">
+                  <tr 
+                    key={product.id} 
+                    className={cn(
+                      "border-b hover:bg-gray-50 transition-colors",
+                      selectedProductFromDropdown?.id === product.id && "bg-blue-50 border-blue-200"
+                    )}
+                  >
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         {product.image && (
@@ -340,13 +460,14 @@ export const ProductTable = () => {
           
           {filteredProducts.length === 0 && !loading && (
             <div className="text-center py-8 text-gray-500">
-              {activeFiltersCount > 0 || searchTerm ? (
+              {activeFiltersCount > 0 || searchTerm || selectedProductFromDropdown ? (
                 <div>
                   <p>No products found matching your search criteria.</p>
                   <p className="text-sm mt-1">
                     {searchTerm && `Search: "${searchTerm}"`}
                     {searchTerm && activeFiltersCount > 0 && ' with '}
                     {activeFiltersCount > 0 && `${activeFiltersCount} filter${activeFiltersCount > 1 ? 's' : ''} applied`}
+                    {selectedProductFromDropdown && ` | Selected: ${selectedProductFromDropdown.name}`}
                   </p>
                   <Button variant="outline" onClick={clearFilters} className="mt-2">
                     Clear All Filters
