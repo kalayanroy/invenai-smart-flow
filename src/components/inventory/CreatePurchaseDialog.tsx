@@ -6,12 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, ChevronDown, Check } from 'lucide-react';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Plus, Trash2 } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { Purchase } from '@/hooks/usePurchases';
-import { cn } from '@/lib/utils';
+import { ProductSelector } from './ProductSelector';
 
 interface PurchaseItem {
   productId: string;
@@ -49,21 +47,17 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }
   ]);
 
-  // Enhanced product dropdown states
   const [openProductSelectors, setOpenProductSelectors] = useState<boolean[]>([false]);
-  const [dropdownSearchTerms, setDropdownSearchTerms] = useState<string[]>(['']);
 
   const addItem = () => {
     setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
     setOpenProductSelectors([...openProductSelectors, false]);
-    setDropdownSearchTerms([...dropdownSearchTerms, '']);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
       setOpenProductSelectors(openProductSelectors.filter((_, i) => i !== index));
-      setDropdownSearchTerms(dropdownSearchTerms.filter((_, i) => i !== index));
     }
   };
 
@@ -81,19 +75,16 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     setItems(updatedItems);
   };
 
-  // Enhanced product selection with dropdown search
-  const handleProductSelect = (index: number, product: any) => {
-    console.log('Product selected in dialog:', { productId: product.id, product });
+  // Handle product selection with proper data from ProductSelector
+  const handleProductSelect = (index: number, productId: string, productData: any) => {
+    console.log('Product selected in dialog:', { productId, productData });
     
     const updatedItems = [...items];
-    const priceString = product.purchasePrice.replace(/[^\d.-]/g, '');
-    const unitPrice = parseFloat(priceString) || 0;
-    
     updatedItems[index] = {
       ...updatedItems[index],
-      productId: product.id,
-      productName: product.name,
-      unitPrice: unitPrice
+      productId: productId,
+      productName: productData.name,
+      unitPrice: productData.unitPrice
     };
     
     // Recalculate total amount
@@ -102,41 +93,12 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     
     console.log('Updated item:', updatedItems[index]);
     setItems(updatedItems);
-    
-    // Close dropdown and clear search
-    const newOpenStates = [...openProductSelectors];
-    newOpenStates[index] = false;
-    setOpenProductSelectors(newOpenStates);
-    
-    const newSearchTerms = [...dropdownSearchTerms];
-    newSearchTerms[index] = '';
-    setDropdownSearchTerms(newSearchTerms);
   };
 
   const setProductSelectorOpen = (index: number, open: boolean) => {
     const newOpenStates = [...openProductSelectors];
     newOpenStates[index] = open;
     setOpenProductSelectors(newOpenStates);
-  };
-
-  const setDropdownSearchTerm = (index: number, term: string) => {
-    const newSearchTerms = [...dropdownSearchTerms];
-    newSearchTerms[index] = term;
-    setDropdownSearchTerms(newSearchTerms);
-  };
-
-  // Filter products for dropdown based on search term
-  const getFilteredProducts = (index: number) => {
-    const searchTerm = dropdownSearchTerms[index];
-    if (!searchTerm.trim()) return products.slice(0, 10); // Show first 10 if no search
-    
-    const searchLower = searchTerm.toLowerCase().trim();
-    return products.filter(product => 
-      product.name.toLowerCase().includes(searchLower) ||
-      product.sku.toLowerCase().includes(searchLower) ||
-      product.category.toLowerCase().includes(searchLower) ||
-      (product.barcode && product.barcode.toLowerCase().includes(searchLower))
-    ).slice(0, 10); // Limit to 10 results for performance
   };
 
   const getTotalAmount = () => {
@@ -183,7 +145,6 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
     });
     setItems([{ productId: '', productName: '', quantity: 1, unitPrice: 0, totalAmount: 0 }]);
     setOpenProductSelectors([false]);
-    setDropdownSearchTerms(['']);
   };
 
   const isFormValid = items.some(item => item.productId && item.quantity > 0) && formData.supplier.trim();
@@ -255,56 +216,20 @@ export const CreatePurchaseDialog = ({ open, onOpenChange, onPurchaseCreated }: 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Product *</Label>
-                      <Popover open={openProductSelectors[index]} onOpenChange={(open) => setProductSelectorOpen(index, open)}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openProductSelectors[index]}
-                            className="w-full justify-between h-10"
-                          >
-                            {item.productName || "Search products by name, SKU, or barcode..."}
-                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0 bg-white border shadow-lg z-50" align="start">
-                          <Command>
-                            <CommandInput 
-                              placeholder="Search products..." 
-                              value={dropdownSearchTerms[index]}
-                              onValueChange={(value) => setDropdownSearchTerm(index, value)}
-                            />
-                            <CommandList className="max-h-60 overflow-y-auto">
-                              <CommandEmpty>
-                                {loading ? "Loading products..." : "No product found."}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {getFilteredProducts(index).map((product) => (
-                                  <CommandItem
-                                    key={product.id}
-                                    value={`${product.name}-${product.id}`}
-                                    onSelect={() => handleProductSelect(index, product)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        item.productId === product.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{product.name}</span>
-                                      <span className="text-sm text-muted-foreground">
-                                        SKU: {product.sku} | Stock: {product.stock} | {product.category}
-                                      </span>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <ProductSelector
+                        products={products}
+                        selectedProductId={item.productId}
+                        onProductSelect={(productId, productData) => {
+                          handleProductSelect(index, productId, productData);
+                        }}
+                        open={openProductSelectors[index]}
+                        onOpenChange={(open) => setProductSelectorOpen(index, open)}
+                        placeholder="Select product..."
+                        className="w-full"
+                        loadMoreProducts={loadMoreProducts}
+                        hasMore={hasMore}
+                        isLoading={loading}
+                      />
                     </div>
 
                     <div className="space-y-2">
