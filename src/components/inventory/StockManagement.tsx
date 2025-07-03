@@ -567,13 +567,69 @@ export const StockManagement = () => {
         <CardContent>
           <div className="flex flex-wrap gap-4 mb-6">
             <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64"
-              />
+              <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={dropdownOpen}
+                    className="w-full justify-between h-10"
+                  >
+                    {selectedProductFromDropdown 
+                      ? `${selectedProductFromDropdown.name} (${selectedProductFromDropdown.sku})`
+                      : "Search products by name, SKU, or barcode..."
+                    }
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-white border shadow-lg z-50" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search products..." 
+                      value={dropdownSearchTerm}
+                      onValueChange={handleDropdownSearchChange}
+                    />
+                    <CommandList className="max-h-60 overflow-y-auto">
+                      <CommandEmpty>
+                        {isDropdownSearching ? "Searching..." : 
+                         loading && !dropdownSearchTerm ? "Loading products..." : 
+                         "No product found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {dropdownFilteredProducts.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={`${product.name}-${product.id}`}
+                            onSelect={() => handleProductSelectFromDropdown(product)}
+                            className="cursor-pointer"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProductFromDropdown?.id === product.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                SKU: {product.sku} | Stock: {product.stock} | {product.category}
+                              </span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                        
+                        {/* Search loading indicator */}
+                        {isDropdownSearching && (
+                          <div className="flex items-center justify-center p-4">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span className="text-sm text-gray-500">Searching products...</span>
+                          </div>
+                        )}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
