@@ -102,8 +102,23 @@ export const ProductTable = () => {
   // Enhanced filter products with more comprehensive search
   const filteredProducts = useMemo(() => {
     console.log('Filtering products with search term:', searchTerm);
+    console.log('Selected product from dropdown:', selectedProductFromDropdown);
     
-    return products.filter(product => {
+    let productsToFilter = products;
+    
+    // If a product is selected from dropdown and it's not in the loaded products, add it
+    if (selectedProductFromDropdown && !products.find(p => p.id === selectedProductFromDropdown.id)) {
+      console.log('Adding selected product to filter list:', selectedProductFromDropdown.name);
+      productsToFilter = [selectedProductFromDropdown, ...products];
+    }
+    
+    return productsToFilter.filter(product => {
+      // If a specific product is selected from dropdown, prioritize showing it
+      if (selectedProductFromDropdown && product.id === selectedProductFromDropdown.id) {
+        console.log('Showing selected product:', product.name);
+        return true;
+      }
+      
       // Enhanced search that includes name, SKU, category, and barcode
       const searchLower = searchTerm.toLowerCase().trim();
       const matchesSearch = !searchTerm || 
@@ -142,7 +157,7 @@ export const ProductTable = () => {
       
       return result;
     });
-  }, [products, searchTerm, categoryFilter, statusFilter, stockFilter]);
+  }, [products, searchTerm, categoryFilter, statusFilter, stockFilter, selectedProductFromDropdown]);
 
   // Filter products for dropdown based on dropdown search term
   const dropdownFilteredProducts = useMemo(() => {
@@ -223,12 +238,16 @@ export const ProductTable = () => {
   };
 
   const handleProductSelectFromDropdown = (product: Product) => {
+    console.log('Product selected from dropdown:', product.name, product.id);
     setSelectedProductFromDropdown(product);
     setDropdownOpen(false);
     setDropdownSearchTerm('');
     setDropdownSearchResults([]);
-    // Also update the main search to show this product
-    setSearchTerm(product.name);
+    // Clear other filters to ensure the selected product is visible
+    setSearchTerm('');
+    setCategoryFilter('all');
+    setStatusFilter('all');
+    setStockFilter('all');
   };
 
   const getStatusColor = (status: string) => {
@@ -462,7 +481,7 @@ export const ProductTable = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-sm font-mono">{product.id}</td>
+                    <td className="py-4 px-4 text-sm font-mono">{product.sku}</td>
                     <td className="py-4 px-4">
                       <div className="text-sm">
                         <div className="font-medium">{product.stock} {product.unit}</div>
