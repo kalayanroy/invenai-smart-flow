@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { usePurchases, Purchase, PurchaseOrder } from '@/hooks/usePurchases';
 import { CreatePurchaseDialog } from './CreatePurchaseDialog';
 import { ViewPurchaseDialog } from './ViewPurchaseDialog';
 import { EditPurchaseDialog } from './EditPurchaseDialog';
+import { PurchaseOrderFiltersComponent, PurchaseOrderFilters } from './PurchaseOrderFilters';
 import { generatePurchaseInvoicePDF } from '@/utils/pdfGenerator';
 import {generatePInvoicePDF} from '@/utils/pdfGenerator';
 
@@ -20,6 +21,60 @@ export const PurchaseSection = () => {
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState<PurchaseOrder | null>(null);
 
+  // Filter state for purchase orders
+  const [orderFilters, setOrderFilters] = useState<PurchaseOrderFilters>({
+    orderId: '',
+    supplier: '',
+    dateFrom: null,
+    dateTo: null
+  });
+
+  // Filtered purchase orders
+  const filteredPurchaseOrders = useMemo(() => {
+    return purchaseOrders.filter(order => {
+      // Order ID filter
+      if (orderFilters.orderId && 
+          !order.id.toLowerCase().includes(orderFilters.orderId.toLowerCase())) {
+        return false;
+      }
+
+      // Supplier filter
+      if (orderFilters.supplier && 
+          !order.supplier.toLowerCase().includes(orderFilters.supplier.toLowerCase())) {
+        return false;
+      }
+
+      // Date from filter
+      if (orderFilters.dateFrom) {
+        const orderDate = new Date(order.date);
+        const filterDateFrom = new Date(orderFilters.dateFrom);
+        if (orderDate < filterDateFrom) {
+          return false;
+        }
+      }
+
+      // Date to filter
+      if (orderFilters.dateTo) {
+        const orderDate = new Date(order.date);
+        const filterDateTo = new Date(orderFilters.dateTo);
+        if (orderDate > filterDateTo) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [purchaseOrders, orderFilters]);
+
+  const handleClearOrderFilters = () => {
+    setOrderFilters({
+      orderId: '',
+      supplier: '',
+      dateFrom: null,
+      dateTo: null
+    });
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Received': return 'bg-green-100 text-green-800';
@@ -30,7 +85,7 @@ export const PurchaseSection = () => {
     }
   };
 
-  const totalPurchases = purchaseOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalPurchases = filteredPurchaseOrders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   const handlePurchaseCreated = (orderData: any) => {
     addPurchaseOrder(orderData);
@@ -110,7 +165,7 @@ export const PurchaseSection = () => {
               <ShoppingCart className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-600">Purchase Orders</p>
-                <p className="text-2xl font-bold">{purchaseOrders.length}</p>
+                <p className="text-2xl font-bold">{filteredPurchaseOrders.length}</p>
               </div>
             </div>
           </CardContent>
@@ -135,7 +190,7 @@ export const PurchaseSection = () => {
               <div>
                 <p className="text-sm text-gray-600">Items Purchased</p>
                 <p className="text-2xl font-bold">
-                  {purchaseOrders.reduce((sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)}
+                  {filteredPurchaseOrders.reduce((sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)}
                 </p>
               </div>
             </div>
@@ -143,11 +198,20 @@ export const PurchaseSection = () => {
         </Card>
       </div>
 
+      {/* Purchase Order Filters */}
+      <PurchaseOrderFiltersComponent
+        filters={orderFilters}
+        onFiltersChange={setOrderFilters}
+        onClearFilters={handleClearOrderFilters}
+      />
+
       {/* Purchase Orders Table */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Purchase Orders ({purchaseOrders.length} orders)</CardTitle>
+            <CardTitle>
+              Purchase Orders ({filteredPurchaseOrders.length} of {purchaseOrders.length} order{purchaseOrders.length !== 1 ? 's' : ''})
+            </CardTitle>
             <Button 
               className="flex items-center gap-2"
               onClick={() => setShowCreatePurchase(true)}
@@ -173,7 +237,7 @@ export const PurchaseSection = () => {
                 </tr>
               </thead>
               <tbody>
-                {purchaseOrders.map((order) => (
+                {filteredPurchaseOrders.map((order) => (
                   <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-4 text-sm font-mono">{order.id}</td>
                     <td className="py-4 px-4 text-sm">{order.supplier}</td>
@@ -238,9 +302,13 @@ export const PurchaseSection = () => {
             </table>
           </div>
           
-          {purchaseOrders.length === 0 && (
+          {filteredPurchaseOrders.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              <p>No purchase orders found. Create your first purchase order to get started.</p>
+              {purchaseOrders.length === 0 ? (
+                <p>No purchase orders found. Create your first purchase order to get started.</p>
+              ) : (
+                <p>No orders match your current filters. Try adjusting the filter criteria.</p>
+              )}
             </div>
           )}
         </CardContent>
