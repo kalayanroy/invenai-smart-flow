@@ -113,26 +113,19 @@ export const StockManagement = () => {
     return { openingStock, totalSold, totalPurchased, totalReturned, voucherSales };
   };
 
-  // Enhanced filter products with dropdown selection support
+  // Enhanced filter products with dropdown selection support - show ONLY selected product when one is chosen
   const filteredProducts = React.useMemo(() => {
     console.log('Filtering products with search term:', searchTerm);
     console.log('Selected product from dropdown:', selectedProductFromDropdown);
     
-    let productsToFilter = products;
-    
-    // If a product is selected from dropdown and it's not in the loaded products, add it
-    if (selectedProductFromDropdown && !products.find(p => p.id === selectedProductFromDropdown.id)) {
-      console.log('Adding selected product to filter list:', selectedProductFromDropdown.name);
-      productsToFilter = [selectedProductFromDropdown, ...products];
+    // If a specific product is selected from dropdown, show ONLY that product
+    if (selectedProductFromDropdown) {
+      console.log('Showing only selected product:', selectedProductFromDropdown.name);
+      return [selectedProductFromDropdown];
     }
     
-    const filtered = productsToFilter.filter(product => {
-      // If a specific product is selected from dropdown, prioritize showing it
-      if (selectedProductFromDropdown && product.id === selectedProductFromDropdown.id) {
-        console.log('Showing selected product:', product.name);
-        return true;
-      }
-      
+    // Otherwise apply normal filtering
+    const filtered = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            product.sku.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
@@ -459,7 +452,7 @@ export const StockManagement = () => {
               )}
               {selectedProductFromDropdown && (
                 <span className="text-sm font-normal text-green-600 ml-2">
-                  - selected: {selectedProductFromDropdown.name}
+                  - showing: {selectedProductFromDropdown.name}
                 </span>
               )}
             </CardTitle>
@@ -488,7 +481,7 @@ export const StockManagement = () => {
                   >
                     {selectedProductFromDropdown 
                       ? `${selectedProductFromDropdown.name} (${selectedProductFromDropdown.sku})`
-                      : "Search products by name, SKU, or barcode..."
+                      : "Search products by name, SKU, or barcode to view specific product..."
                     }
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -543,30 +536,35 @@ export const StockManagement = () => {
               </Popover>
             </div>
             
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="In Stock">In Stock</SelectItem>
-                <SelectItem value="Low Stock">Low Stock</SelectItem>
-                <SelectItem value="Out of Stock">Out of Stock</SelectItem>
-                <SelectItem value="Overstocked">Overstocked</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Only show other filters when no specific product is selected */}
+            {!selectedProductFromDropdown && (
+              <>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="In Stock">In Stock</SelectItem>
+                    <SelectItem value="Low Stock">Low Stock</SelectItem>
+                    <SelectItem value="Out of Stock">Out of Stock</SelectItem>
+                    <SelectItem value="Overstocked">Overstocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
             
             {activeFiltersCount > 0 && (
               <Button variant="outline" onClick={clearFilters}>
@@ -574,7 +572,7 @@ export const StockManagement = () => {
               </Button>
             )}
 
-            {hasMore && !loading && (
+            {!selectedProductFromDropdown && hasMore && !loading && (
               <Button 
                 variant="outline" 
                 onClick={handleLoadMoreProducts}
@@ -595,11 +593,17 @@ export const StockManagement = () => {
 
           {/* Results Summary */}
           <div className="mb-4 text-sm text-gray-600">
-            Showing {productsToShow.length} of {filteredProducts.length} products
-            {displayedProducts < filteredProducts.length && (
-              <span className="ml-2 text-blue-600">
-                (Scroll down to load more)
-              </span>
+            {selectedProductFromDropdown ? (
+              <span>Showing details for: <strong>{selectedProductFromDropdown.name}</strong></span>
+            ) : (
+              <>
+                Showing {productsToShow.length} of {filteredProducts.length} products
+                {displayedProducts < filteredProducts.length && (
+                  <span className="ml-2 text-blue-600">
+                    (Scroll down to load more)
+                  </span>
+                )}
+              </>
             )}
           </div>
 
