@@ -248,6 +248,10 @@ export const ProductTable = () => {
     setCategoryFilter('all');
     setStatusFilter('all');
     setStockFilter('all');
+    
+    // Automatically open the product view modal
+    setSelectedProduct(product);
+    setShowViewDialog(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -318,7 +322,7 @@ export const ProductTable = () => {
           <div className="flex items-center gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search & Select Product
+                Search & Select Product to View Details
               </label>
               <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
                 <PopoverTrigger asChild>
@@ -330,7 +334,7 @@ export const ProductTable = () => {
                   >
                     {selectedProductFromDropdown 
                       ? `${selectedProductFromDropdown.name} (${selectedProductFromDropdown.sku})`
-                      : "Search products by name, SKU, or barcode..."
+                      : "Search products by name, SKU, or barcode to view details..."
                     }
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
