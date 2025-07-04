@@ -142,6 +142,80 @@ export type Database = {
           },
         ]
       }
+      purchase_returns: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          original_quantity: number
+          processed_by: string | null
+          processed_date: string | null
+          product_id: string
+          product_name: string
+          purchase_item_id: string
+          purchase_order_id: string
+          reason: string
+          return_date: string
+          return_quantity: number
+          status: string
+          supplier: string
+          total_refund: string
+          unit_price: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id: string
+          notes?: string | null
+          original_quantity: number
+          processed_by?: string | null
+          processed_date?: string | null
+          product_id: string
+          product_name: string
+          purchase_item_id: string
+          purchase_order_id: string
+          reason: string
+          return_date?: string
+          return_quantity: number
+          status?: string
+          supplier: string
+          total_refund: string
+          unit_price: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          original_quantity?: number
+          processed_by?: string | null
+          processed_date?: string | null
+          product_id?: string
+          product_name?: string
+          purchase_item_id?: string
+          purchase_order_id?: string
+          reason?: string
+          return_date?: string
+          return_quantity?: number
+          status?: string
+          supplier?: string
+          total_refund?: string
+          unit_price?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_returns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_voucher_items: {
         Row: {
           company_id: string | null
