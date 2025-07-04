@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { ViewSaleDialog } from './ViewSaleDialog';
 import { EditSaleDialog } from './EditSaleDialog';
 import { ViewSalesVoucherDialog } from './ViewSalesVoucherDialog';
 import { EditSalesVoucherDialog } from './EditSalesVoucherDialog';
+import { SalesVoucherFiltersComponent, SalesVoucherFilters } from './SalesVoucherFilters';
 import { generateSalesInvoicePDF } from '@/utils/pdfGenerator';
 import { generateSalesVoucherPDF } from '@/utils/salesVoucherPdfGenerator';
 
@@ -25,9 +26,10 @@ export const SalesSection = () => {
   const { salesVouchers, createSalesVoucher, updateSalesVoucher, deleteSalesVoucher } = useSalesVouchers();
   const { fetchProducts } = useProducts();
   const { fetchSales } = useSales();
-const {  fetchPurchases } = usePurchases();
-const {  fetchSalesReturns } = useSalesReturns();
-const {  fetchSalesVouchers } = useSalesVouchers();
+  const { fetchPurchases } = usePurchases();
+  const { fetchSalesReturns } = useSalesReturns();
+  const { fetchSalesVouchers } = useSalesVouchers();
+  
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateSale, setShowCreateSale] = useState(false);
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
@@ -37,6 +39,60 @@ const {  fetchSalesVouchers } = useSalesVouchers();
   const [showEditVoucher, setShowEditVoucher] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [selectedVoucher, setSelectedVoucher] = useState<SalesVoucher | null>(null);
+
+  // Filter state for sales vouchers
+  const [voucherFilters, setVoucherFilters] = useState<SalesVoucherFilters>({
+    voucherNumber: '',
+    customer: '',
+    dateFrom: null,
+    dateTo: null
+  });
+
+  // Filtered sales vouchers
+  const filteredSalesVouchers = useMemo(() => {
+    return salesVouchers.filter(voucher => {
+      // Voucher number filter
+      if (voucherFilters.voucherNumber && 
+          !voucher.voucherNumber.toLowerCase().includes(voucherFilters.voucherNumber.toLowerCase())) {
+        return false;
+      }
+
+      // Customer filter
+      if (voucherFilters.customer && 
+          !(voucher.customerName || '').toLowerCase().includes(voucherFilters.customer.toLowerCase())) {
+        return false;
+      }
+
+      // Date from filter
+      if (voucherFilters.dateFrom) {
+        const voucherDate = new Date(voucher.date);
+        const filterDateFrom = new Date(voucherFilters.dateFrom);
+        if (voucherDate < filterDateFrom) {
+          return false;
+        }
+      }
+
+      // Date to filter
+      if (voucherFilters.dateTo) {
+        const voucherDate = new Date(voucher.date);
+        const filterDateTo = new Date(voucherFilters.dateTo);
+        if (voucherDate > filterDateTo) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [salesVouchers, voucherFilters]);
+
+  const handleClearVoucherFilters = () => {
+    setVoucherFilters({
+      voucherNumber: '',
+      customer: '',
+      dateFrom: null,
+      dateTo: null
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,21 +139,18 @@ const {  fetchSalesVouchers } = useSalesVouchers();
   const handleDeleteSale = async (sale: Sale) => {
     if (window.confirm(`Are you sure you want to delete sale ${sale.id}?`)) {
       deleteSale(sale.id);
-      // Automatically refresh products to update stock calculations
-      // ✅ Add missing fetches here
-  await Promise.all([
-    fetchProducts(),
-    fetchSales?.(),
-    fetchPurchases?.(),
-    fetchSalesReturns?.(),
-    fetchSalesVouchers?.(),
-  ]);
-      setRefreshKey(prev => prev + 1); // triggers rerender
+      await Promise.all([
+        fetchProducts(),
+        fetchSales?.(),
+        fetchPurchases?.(),
+        fetchSalesReturns?.(),
+        fetchSalesVouchers?.(),
+      ]);
+      setRefreshKey(prev => prev + 1);
       toast({
         title: "Sale Deleted",
         description: `Sale ${sale.id} has been deleted.`,
       });
-
     }
   };
 
@@ -112,14 +165,12 @@ const {  fetchSalesVouchers } = useSalesVouchers();
   const handleVoucherCreated = async (voucherData: any) => {
     try {
       await createSalesVoucher(voucherData);
-      // Automatically refresh products to update stock calculations
-      //await fetchProducts();
       await Promise.all([
-  fetchProducts(),
-  fetchSales(),
-  fetchSalesReturns(),
-  fetchPurchases(),
-]);
+        fetchProducts(),
+        fetchSales(),
+        fetchSalesReturns(),
+        fetchPurchases(),
+      ]);
 
       toast({
         title: "Sales Voucher Created",
@@ -148,7 +199,6 @@ const {  fetchSalesVouchers } = useSalesVouchers();
   const handleVoucherUpdated = async (id: string, updates: Partial<SalesVoucher>) => {
     try {
       await updateSalesVoucher(id, updates);
-      // Automatically refresh products to update stock calculations
       await fetchProducts();
       toast({
         title: "Voucher Updated",
@@ -176,7 +226,6 @@ const {  fetchSalesVouchers } = useSalesVouchers();
     if (window.confirm(`Are you sure you want to delete voucher ${voucherId}?`)) {
       try {
         await deleteSalesVoucher(voucherId);
-        // Automatically refresh products to update stock calculations
         await fetchProducts();
         toast({
           title: "Voucher Deleted",
@@ -215,7 +264,7 @@ const {  fetchSalesVouchers } = useSalesVouchers();
               <Receipt className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-600">Sales Vouchers</p>
-                <p className="text-2xl font-bold">{salesVouchers.length}</p>
+                <p className="text-2xl font-bold">{filteredSalesVouchers.length}</p>
               </div>
             </div>
           </CardContent>
@@ -257,10 +306,19 @@ const {  fetchSalesVouchers } = useSalesVouchers();
         </TabsList>
 
         <TabsContent value="vouchers" className="space-y-4">
+          {/* Sales Voucher Filters */}
+          <SalesVoucherFiltersComponent
+            filters={voucherFilters}
+            onFiltersChange={setVoucherFilters}
+            onClearFilters={handleClearVoucherFilters}
+          />
+
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Sales Vouchers ({salesVouchers.length} vouchers)</CardTitle>
+                <CardTitle>
+                  Sales Vouchers ({filteredSalesVouchers.length} of {salesVouchers.length} voucher{salesVouchers.length !== 1 ? 's' : ''})
+                </CardTitle>
                 <Button 
                   className="flex items-center gap-2"
                   onClick={() => setShowCreateVoucher(true)}
@@ -286,7 +344,7 @@ const {  fetchSalesVouchers } = useSalesVouchers();
                     </tr>
                   </thead>
                   <tbody>
-                    {salesVouchers.map((voucher) => (
+                    {filteredSalesVouchers.map((voucher) => (
                       <tr key={voucher.id} className="border-b hover:bg-gray-50 transition-colors">
                         <td className="py-4 px-4 text-sm font-mono">{voucher.voucherNumber}</td>
                         <td className="py-4 px-4 text-sm">{voucher.customerName || 'Walk-in Customer'}</td>
@@ -351,9 +409,13 @@ const {  fetchSalesVouchers } = useSalesVouchers();
                 </table>
               </div>
               
-              {salesVouchers.length === 0 && (
+              {filteredSalesVouchers.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  <p>No sales vouchers found. Create your first voucher to get started.</p>
+                  {salesVouchers.length === 0 ? (
+                    <p>No sales vouchers found. Create your first voucher to get started.</p>
+                  ) : (
+                    <p>No vouchers match your current filters. Try adjusting the filter criteria.</p>
+                  )}
                 </div>
               )}
             </CardContent>
