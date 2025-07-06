@@ -69,27 +69,27 @@ export const EditPurchaseReturnDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>Edit Purchase Return - {purchaseReturn.id}</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Edit Purchase Return - {purchaseReturn.id}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Product Information (Read-only) */}
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
             <h3 className="font-medium mb-2">Product Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Product:</span>
-                <div className="font-medium">{purchaseReturn.productName}</div>
+                <div className="font-medium break-words">{purchaseReturn.productName}</div>
               </div>
               <div>
                 <span className="text-gray-600">SKU:</span>
-                <div className="font-mono">{purchaseReturn.productId}</div>
+                <div className="font-mono text-xs sm:text-sm break-all">{purchaseReturn.productId}</div>
               </div>
               <div>
                 <span className="text-gray-600">Supplier:</span>
-                <div>{purchaseReturn.supplier}</div>
+                <div className="break-words">{purchaseReturn.supplier}</div>
               </div>
               <div>
                 <span className="text-gray-600">Original Quantity:</span>
@@ -98,7 +98,7 @@ export const EditPurchaseReturnDialog = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="returnQuantity">Return Quantity</Label>
               <Input
@@ -109,13 +109,14 @@ export const EditPurchaseReturnDialog = ({
                 value={formData.returnQuantity}
                 onChange={(e) => setFormData(prev => ({ ...prev, returnQuantity: parseInt(e.target.value) || 1 }))}
                 required
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as PurchaseReturn['status'] }))}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -130,7 +131,7 @@ export const EditPurchaseReturnDialog = ({
 
           <div className="space-y-2">
             <Label>Total Refund Amount</Label>
-            <div className="p-2 bg-green-50 rounded border font-semibold text-green-700">
+            <div className="p-3 bg-green-50 rounded border font-semibold text-green-700 text-center sm:text-left">
               ৳{refundAmount.toFixed(2)}
             </div>
           </div>
@@ -138,7 +139,7 @@ export const EditPurchaseReturnDialog = ({
           <div className="space-y-2">
             <Label htmlFor="reason">Reason for Return</Label>
             <Select value={formData.reason} onValueChange={(value) => setFormData(prev => ({ ...prev, reason: value }))}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,7 +155,7 @@ export const EditPurchaseReturnDialog = ({
           </div>
 
           {formData.status === 'Processed' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="processedBy">Processed By</Label>
                 <Input
@@ -162,6 +163,7 @@ export const EditPurchaseReturnDialog = ({
                   value={formData.processedBy}
                   onChange={(e) => setFormData(prev => ({ ...prev, processedBy: e.target.value }))}
                   placeholder="Enter processor name"
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -171,6 +173,7 @@ export const EditPurchaseReturnDialog = ({
                   type="date"
                   value={formData.processedDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, processedDate: e.target.value }))}
+                  className="w-full"
                 />
               </div>
             </div>
@@ -184,14 +187,15 @@ export const EditPurchaseReturnDialog = ({
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               placeholder="Additional details about the return..."
               rows={3}
+              className="w-full resize-none"
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="w-full sm:w-auto">
               Update Return
             </Button>
           </div>

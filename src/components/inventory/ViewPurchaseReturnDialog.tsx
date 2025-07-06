@@ -25,47 +25,47 @@ export const ViewPurchaseReturnDialog = ({ open, onOpenChange, purchaseReturn }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>Purchase Return Details - {purchaseReturn.id}</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Purchase Return Details - {purchaseReturn.id}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Status */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Return Status</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h3 className="text-base sm:text-lg font-semibold">Return Status</h3>
             <Badge className={getStatusColor(purchaseReturn.status)}>
               {purchaseReturn.status}
             </Badge>
           </div>
 
           {/* Product Information */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-medium mb-3">Product Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <h3 className="font-medium mb-2 sm:mb-3">Product Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Product Name:</span>
-                <div className="font-medium">{purchaseReturn.productName}</div>
+                <div className="font-medium break-words">{purchaseReturn.productName}</div>
               </div>
               <div>
                 <span className="text-gray-600">Product ID:</span>
-                <div className="font-mono">{purchaseReturn.productId}</div>
+                <div className="font-mono text-xs sm:text-sm break-all">{purchaseReturn.productId}</div>
               </div>
               <div>
                 <span className="text-gray-600">Supplier:</span>
-                <div>{purchaseReturn.supplier}</div>
+                <div className="break-words">{purchaseReturn.supplier}</div>
               </div>
               <div>
                 <span className="text-gray-600">Purchase Order ID:</span>
-                <div className="font-mono">{purchaseReturn.purchaseOrderId}</div>
+                <div className="font-mono text-xs sm:text-sm break-all">{purchaseReturn.purchaseOrderId}</div>
               </div>
             </div>
           </div>
 
           {/* Return Details */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-medium mb-3">Return Details</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+            <h3 className="font-medium mb-2 sm:mb-3">Return Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Original Quantity:</span>
                 <div className="font-medium">{purchaseReturn.originalQuantity}</div>
@@ -88,7 +88,7 @@ export const ViewPurchaseReturnDialog = ({ open, onOpenChange, purchaseReturn }:
               </div>
               <div>
                 <span className="text-gray-600">Reason:</span>
-                <div>{purchaseReturn.reason}</div>
+                <div className="break-words">{purchaseReturn.reason}</div>
               </div>
             </div>
           </div>
@@ -97,7 +97,7 @@ export const ViewPurchaseReturnDialog = ({ open, onOpenChange, purchaseReturn }:
           {purchaseReturn.notes && (
             <div>
               <h3 className="font-medium mb-2">Additional Notes</h3>
-              <div className="bg-gray-50 p-3 rounded border text-sm">
+              <div className="bg-gray-50 p-3 rounded border text-sm break-words">
                 {purchaseReturn.notes}
               </div>
             </div>
@@ -105,13 +105,13 @@ export const ViewPurchaseReturnDialog = ({ open, onOpenChange, purchaseReturn }:
 
           {/* Processing Information */}
           {(purchaseReturn.processedBy || purchaseReturn.processedDate) && (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-medium mb-3">Processing Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+              <h3 className="font-medium mb-2 sm:mb-3">Processing Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 {purchaseReturn.processedBy && (
                   <div>
                     <span className="text-gray-600">Processed By:</span>
-                    <div className="font-medium">{purchaseReturn.processedBy}</div>
+                    <div className="font-medium break-words">{purchaseReturn.processedBy}</div>
                   </div>
                 )}
                 {purchaseReturn.processedDate && (

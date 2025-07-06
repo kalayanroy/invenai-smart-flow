@@ -62,27 +62,27 @@ export const CreatePurchaseReturnDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>Create Purchase Return</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Create Purchase Return</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Purchase Item Information */}
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
             <h3 className="font-medium mb-2">Purchase Item Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Product:</span>
-                <div className="font-medium">{purchaseItem.productName}</div>
+                <div className="font-medium break-words">{purchaseItem.productName}</div>
               </div>
               <div>
                 <span className="text-gray-600">SKU:</span>
-                <div className="font-mono">{purchaseItem.productId}</div>
+                <div className="font-mono text-xs sm:text-sm break-all">{purchaseItem.productId}</div>
               </div>
               <div>
                 <span className="text-gray-600">Supplier:</span>
-                <div>{purchaseItem.supplier}</div>
+                <div className="break-words">{purchaseItem.supplier}</div>
               </div>
               <div>
                 <span className="text-gray-600">Original Quantity:</span>
@@ -109,6 +109,7 @@ export const CreatePurchaseReturnDialog = ({
               value={formData.returnQuantity}
               onChange={(e) => setFormData(prev => ({ ...prev, returnQuantity: parseInt(e.target.value) || 1 }))}
               required
+              className="w-full"
             />
             <div className="text-sm text-gray-500">
               Max: {purchaseItem.quantity} (purchased quantity)
@@ -117,7 +118,7 @@ export const CreatePurchaseReturnDialog = ({
 
           <div className="space-y-2">
             <Label>Total Refund Amount</Label>
-            <div className="p-2 bg-blue-50 rounded border font-semibold text-blue-700">
+            <div className="p-3 bg-blue-50 rounded border font-semibold text-blue-700 text-center sm:text-left">
               ৳{refundAmount.toFixed(2)}
             </div>
           </div>
@@ -125,7 +126,7 @@ export const CreatePurchaseReturnDialog = ({
           <div className="space-y-2">
             <Label htmlFor="reason">Reason for Return</Label>
             <Select value={formData.reason} onValueChange={(value) => setFormData(prev => ({ ...prev, reason: value }))}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select reason" />
               </SelectTrigger>
               <SelectContent>
@@ -134,7 +135,7 @@ export const CreatePurchaseReturnDialog = ({
                 <SelectItem value="Damaged in shipping">Damaged in shipping</SelectItem>
                 <SelectItem value="Quality issues">Quality issues</SelectItem>
                 <SelectItem value="Surplus stock">Surplus stock</SelectItem>
-                <SelectItem value="Supplier error">Supplier error</SelectItem>
+                <SelectItem value="Supplier error">Supplier error</SelectItem>  
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -148,14 +149,15 @@ export const CreatePurchaseReturnDialog = ({
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               placeholder="Additional details about the return..."
               rows={3}
+              className="w-full resize-none"
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="w-full sm:w-auto">
               Create Return Request
             </Button>
           </div>
