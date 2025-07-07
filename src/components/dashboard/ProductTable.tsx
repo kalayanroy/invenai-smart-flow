@@ -296,7 +296,12 @@ export const ProductTable = () => {
   return (
     <div className="space-y-6">
       {/* Header with Create Button */}
-      <div className="flex justify-between items-center">
+      
+
+      {/* Product Search Dropdown */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Product Inventory</h2>
         <div className="flex gap-2">
           <Dialog open={showCreateProduct} onOpenChange={setShowCreateProduct}>
@@ -315,10 +320,6 @@ export const ProductTable = () => {
           </Dialog>
         </div>
       </div>
-
-      {/* Product Search Dropdown */}
-      <Card>
-        <CardContent className="p-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
