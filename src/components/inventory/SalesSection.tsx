@@ -300,10 +300,10 @@ export const SalesSection = () => {
 
       {/* Sales Tabs */}
       <Tabs defaultValue="vouchers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        {/*<TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="vouchers">Multi-Item Sales (Vouchers)</TabsTrigger>
           <TabsTrigger value="single">Single Item Sales</TabsTrigger>
-        </TabsList>
+        </TabsList>*/}
 
         <TabsContent value="vouchers" className="space-y-4">
           {/* Sales Voucher Filters */}

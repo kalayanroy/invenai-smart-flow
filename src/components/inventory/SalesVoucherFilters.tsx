@@ -39,9 +39,9 @@ export const SalesVoucherFiltersComponent = ({
 
   return (
     <Card className="mb-6">
-      <CardContent className="p-4">
+      <CardContent className="p-2">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Filter Sales Vouchers</h3>
+          <h5 className="text-lg font-semibold">Filter Sales Vouchers</h5>
           {hasActiveFilters && (
             <Button 
               variant="outline" 
