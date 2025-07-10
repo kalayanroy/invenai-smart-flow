@@ -30,6 +30,9 @@ export const StockDashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('overview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const handleLogout = () => {
     logout();
@@ -54,6 +57,22 @@ export const StockDashboard = () => {
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
+  };
+
+  // Product table handlers
+  const handleViewProduct = (productId: string) => {
+    console.log('View product:', productId);
+    // TODO: Implement view product functionality
+  };
+
+  const handleEditProduct = (productId: string) => {
+    console.log('Edit product:', productId);
+    // TODO: Implement edit product functionality
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    console.log('Delete product:', productId);
+    // TODO: Implement delete product functionality
   };
 
   return (
@@ -151,7 +170,16 @@ export const StockDashboard = () => {
           </div>
         ) : (
           <div className="w-full">
-            {activeTab === 'inventory' && <ProductTable />}
+            {activeTab === 'inventory' && (
+              <ProductTable 
+                onView={handleViewProduct}
+                onEdit={handleEditProduct}
+                onDelete={handleDeleteProduct}
+                searchTerm={searchTerm}
+                categoryFilter={categoryFilter}
+                statusFilter={statusFilter}
+              />
+            )}
             {activeTab === 'stock-management' && <StockManagement />}
             {activeTab === 'pos' && <POSSystem />}
             {activeTab === 'sales' && <SalesSection />}
