@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Sale {
@@ -16,14 +16,21 @@ export interface Sale {
 
 export const useSales = () => {
   const [sales, setSales] = useState<Sale[]>([]);
-
-  useEffect(() => {
-    fetchSales();
-  }, []);
+  const [loading, setLoading] = useState(false);
+  const fetchingRef = useRef(false);
+  const initialLoadRef = useRef(false);
 
   const fetchSales = async () => {
+    if (fetchingRef.current) {
+      console.log('Sales fetch already in progress, skipping...');
+      return;
+    }
+
     try {
+      fetchingRef.current = true;
+      setLoading(true);
       console.log('Fetching sales from Supabase...');
+      
       const { data, error } = await supabase
         .from('sales')
         .select('*')
@@ -51,11 +58,22 @@ export const useSales = () => {
 
       console.log('Mapped sales:', mappedSales);
       setSales(mappedSales);
+      initialLoadRef.current = true;
     } catch (error) {
       console.error('Error in fetchSales:', error);
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
     }
   };
-const updateProductStock = async (productId: string, quantityChange: number) => {
+
+  useEffect(() => {
+    if (!initialLoadRef.current && !fetchingRef.current) {
+      fetchSales();
+    }
+  }, []);
+
+  const updateProductStock = async (productId: string, quantityChange: number) => {
     const { data, error } = await supabase
       .from('products')
       .select('stock')
@@ -78,11 +96,11 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
       console.error('Error updating stock:', updateError);
     }
   };
+
   const addSale = async (saleData: Omit<Sale, 'id'>) => {
     try {
       console.log('Adding sale to Supabase:', saleData);
 
-      // Generate unique ID using timestamp and random number
       const timestamp = Date.now();
       const random = Math.floor(Math.random() * 1000);
       const uniqueId = `SALE-${timestamp}-${random}`;
@@ -115,7 +133,7 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
 
       console.log('Sale successfully added to Supabase:', data);
       await updateProductStock(saleData.productId, -saleData.quantity);
-      await fetchSales(); // Refresh the list
+      await fetchSales();
       return data;
     } catch (error) {
       console.error('Error in addSale:', error);
@@ -151,7 +169,7 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
 
       console.log('Sale updated successfully in Supabase');
       await updateProductStock(updates.productId!, -updates.quantity || 0);
-      await fetchSales(); // Refresh the list
+      await fetchSales();
     } catch (error) {
       console.error('Error in updateSale:', error);
       throw error;
@@ -170,10 +188,9 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
         .delete()
         .eq('id', id);
 
-      
       console.log('Sale deleted successfully from Supabase');
       await updateProductStock(data.product_id, -data.quantity);
-      await fetchSales(); // Refresh the list
+      await fetchSales();
     } catch (error) {
       console.error('Error in deleteSale:', error);
       throw error;
@@ -187,7 +204,7 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
       const { error } = await supabase
         .from('sales')
         .delete()
-        .neq('id', ''); // Delete all records
+        .neq('id', '');
 
       if (error) {
         console.error('Supabase error clearing sales:', error);
@@ -204,6 +221,7 @@ const updateProductStock = async (productId: string, quantityChange: number) => 
 
   return {
     sales,
+    loading,
     addSale,
     updateSale,
     deleteSale,

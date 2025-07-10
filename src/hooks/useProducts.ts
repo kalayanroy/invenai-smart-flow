@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Product {
@@ -26,11 +25,20 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
+  const fetchingRef = useRef(false);
+  const initialLoadRef = useRef(false);
   const PAGE_SIZE = 10;
 
   // Reset and fetch initial products
   const fetchProducts = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (fetchingRef.current) {
+      console.log('Fetch already in progress, skipping...');
+      return;
+    }
+
     try {
+      fetchingRef.current = true;
       setLoading(true);
       console.log('Fetching initial products...');
       
@@ -68,21 +76,24 @@ export const useProducts = () => {
       setProducts(mappedProducts);
       setPage(1);
       setHasMore(mappedProducts.length === PAGE_SIZE);
-      setLoading(false);
+      initialLoadRef.current = true;
     } catch (error) {
       console.error('Error in fetchProducts:', error);
+    } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, []);
 
   // Load more products for pagination
   const loadMoreProducts = useCallback(async () => {
-    if (loading || !hasMore) {
-      console.log('Load more blocked:', { loading, hasMore });
+    if (loading || !hasMore || fetchingRef.current) {
+      console.log('Load more blocked:', { loading, hasMore, fetching: fetchingRef.current });
       return;
     }
 
     try {
+      fetchingRef.current = true;
       setLoading(true);
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -97,7 +108,6 @@ export const useProducts = () => {
 
       if (error) {
         console.error('Error loading more products:', error);
-        setLoading(false);
         return;
       }
 
@@ -125,16 +135,19 @@ export const useProducts = () => {
       setProducts(prev => [...prev, ...mappedProducts]);
       setPage(prev => prev + 1);
       setHasMore(mappedProducts.length === PAGE_SIZE);
-      setLoading(false);
     } catch (error) {
       console.error('Error in loadMoreProducts:', error);
+    } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [loading, hasMore, page]);
 
-  // Initialize on mount
+  // Initialize on mount - but only once
   useEffect(() => {
-    fetchProducts();
+    if (!initialLoadRef.current && !fetchingRef.current) {
+      fetchProducts();
+    }
   }, [fetchProducts]);
 
   const addProduct = async (productData: Omit<Product, 'id' | 'status' | 'aiRecommendation' | 'createdAt'>) => {
